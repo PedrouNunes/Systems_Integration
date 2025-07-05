@@ -1,0 +1,40 @@
+{
+  "@context": ["https://www.w3.org/2019/wot/td/v1", {"@language": "en"}],
+  "title": "MPU6050 Sensor",
+  "id": "urn:dev:wot:mpu6050",
+  "securityDefinitions": {
+    "nosec_sc": { "scheme": "nosec" }
+  },
+  "security": ["nosec_sc"],
+  "properties": {
+    "acceleration": {
+      "type": "object",
+      "readOnly": true,
+      "properties": {
+        "AcX": { "type": "integer" },
+        "AcY": { "type": "integer" },
+        "AcZ": { "type": "integer" }
+      },
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/sensor/motion",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    }
+  },
+  "events": {
+    "motionAlert": {
+      "data": { "type": "boolean" },
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/alert/motion",
+          "subprotocol": "mqtt",
+          "contentType": "application/json",
+          "op": "subscribeevent"
+        }
+      ]
+    }
+  }
+}

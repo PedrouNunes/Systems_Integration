@@ -1,0 +1,35 @@
+{
+  "@context": ["https://www.w3.org/2019/wot/td/v1", {"@language": "en"}],
+  "title": "DHT11 Sensor",
+  "id": "urn:dev:wot:dht11",
+  "securityDefinitions": {
+    "nosec_sc": { "scheme": "nosec" }
+  },
+  "security": ["nosec_sc"],
+  "properties": {
+    "temperature": {
+      "type": "number",
+      "unit": "degree celsius",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/sensor/temperature",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    },
+    "humidity": {
+      "type": "number",
+      "unit": "percent",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/sensor/humidity",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    }
+  }
+}

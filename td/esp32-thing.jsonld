@@ -1,0 +1,84 @@
+{
+  "@context": ["https://www.w3.org/2019/wot/td/v1", { "@language": "en" }],
+  "title": "ESP32 Multi-Sensor Thing",
+  "id": "urn:dev:wot:esp32:device001",
+  "securityDefinitions": {
+    "nosec_sc": { "scheme": "nosec" }
+  },
+  "security": ["nosec_sc"],
+  "properties": {
+    "temperature": {
+      "type": "number",
+      "unit": "degree celsius",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/sensor/temperature",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    },
+    "humidity": {
+      "type": "number",
+      "unit": "percent",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/sensor/humidity",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    },
+    "acceleration": {
+      "type": "object",
+      "readOnly": true,
+      "properties": {
+        "AcX": { "type": "integer" },
+        "AcY": { "type": "integer" },
+        "AcZ": { "type": "integer" }
+      },
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/sensor/motion",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    },
+    "ledState": {
+      "type": "boolean",
+      "readOnly": false,
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/actuator/led",
+          "contentType": "application/json",
+          "op": ["readproperty", "writeproperty"]
+        }
+      ]
+    }
+  },
+  "events": {
+    "climateAlert": {
+      "data": { "type": "boolean" },
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/alert/climate",
+          "subprotocol": "mqtt",
+          "op": "subscribeevent"
+        }
+      ]
+    },
+    "motionAlert": {
+      "data": { "type": "boolean" },
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/alert/motion",
+          "subprotocol": "mqtt",
+          "op": "subscribeevent"
+        }
+      ]
+    }
+  }
+}
