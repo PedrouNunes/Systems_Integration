@@ -1,0 +1,29 @@
+{
+  "name": "systems_integration",
+  "version": "1.0.0",
+  "description": "On the mosquitto.conf archieve I had to add the lines: \r listener 1883\r allow_anonymous true",
+  "main": "server.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PedrouNunes/Systems_Integration.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PedrouNunes/Systems_Integration/issues"
+  },
+  "homepage": "https://github.com/PedrouNunes/Systems_Integration#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "mqtt": "^5.13.1"
+  }
+}

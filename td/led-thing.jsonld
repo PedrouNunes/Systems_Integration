@@ -1,7 +1,9 @@
 {
-  "@context": ["https://www.w3.org/2019/wot/td/v1", {"@language": "en"}],
+  "@context": ["https://www.w3.org/2019/wot/td/v1", { "@language": "en" }],
   "title": "LED Actuator",
+  "description": "Thing Description for MQTT-based LED",
   "id": "urn:dev:wot:led",
+  "base": "mqtt://192.168.1.241",  
   "securityDefinitions": {
     "nosec_sc": { "scheme": "nosec" }
   },
@@ -13,9 +15,10 @@
       "writeOnly": false,
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/actuator/led",
+          "href": "/actuator/led",
           "contentType": "application/json",
-          "op": ["readproperty", "writeproperty"]
+          "op": ["readproperty", "writeproperty"],
+          "subprotocol": "mqtt"
         }
       ]
     }

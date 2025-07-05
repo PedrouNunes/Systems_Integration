@@ -1,0 +1,22 @@
+{
+  "@context": ["https://www.w3.org/2019/wot/td/v1"],
+  "title": "TestThing",
+  "id": "urn:dev:wot:test",
+  "securityDefinitions": {
+    "nosec_sc": { "scheme": "nosec" }
+  },
+  "security": ["nosec_sc"],
+  "properties": {
+    "message": {
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://httpbin.org/get",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    }
+  }
+}
