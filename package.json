@@ -24,6 +24,7 @@
   "homepage": "https://github.com/PedrouNunes/Systems_Integration#readme",
   "dependencies": {
     "express": "^5.1.0",
-    "mqtt": "^5.13.1"
+    "mqtt": "^5.13.1",
+    "sqlite3": "^5.1.7"
   }
 }
