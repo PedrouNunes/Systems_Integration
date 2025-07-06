@@ -3,22 +3,19 @@ const sqlite3 = require("sqlite3").verbose();
 const mqtt = require("mqtt");
 const bodyParser = require("body-parser");
 const path = require("path");
-const cors = require("cors"); // ✅ CORS added
+const cors = require("cors");
 
 const app = express();
 const PORT = 3001;
 
-// ✅ Enable CORS for all routes
 app.use(cors());
-
-// Middleware to parse JSON bodies
 app.use(bodyParser.json());
 
 // Connect to SQLite database
 const dbPath = path.join(__dirname, "sensor_data.db");
 const db = new sqlite3.Database(dbPath);
 
-// MQTT connection (adjust IP if needed)
+// MQTT connection
 const mqttClient = mqtt.connect("mqtt://192.168.1.241");
 const mqttLedTopic = "actuator/led";
 
@@ -65,6 +62,37 @@ app.post("/led", (req, res) => {
   mqttClient.publish(mqttLedTopic, payload, {}, (err) => {
     if (err) return res.status(500).json({ error: "Failed to publish to MQTT" });
     res.json({ status: "LED command sent", value: state });
+  });
+});
+
+// --- PUT /sensors/:id ---
+// Update a sensor log entry
+app.put("/sensors/:id", (req, res) => {
+  const { id } = req.params;
+  const { payload } = req.body;
+
+  if (typeof payload !== "string") {
+    return res.status(400).json({ error: "Invalid 'payload' (must be a string)" });
+  }
+
+  const sql = "UPDATE sensor_logs SET payload = ? WHERE id = ?";
+  db.run(sql, [payload, id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: "Record not found" });
+    res.json({ message: "Record updated successfully" });
+  });
+});
+
+// --- DELETE /sensors/:id ---
+// Delete a sensor log entry
+app.delete("/sensors/:id", (req, res) => {
+  const { id } = req.params;
+
+  const sql = "DELETE FROM sensor_logs WHERE id = ?";
+  db.run(sql, [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: "Record not found" });
+    res.json({ message: "Record deleted successfully" });
   });
 });
 

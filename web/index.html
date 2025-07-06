@@ -43,17 +43,37 @@
       <canvas id="gyroChart"></canvas>
     </div>
 
-    <!-- Sensor Data Table -->
+    <!-- Sensor Data Table with CRUD -->
     <div class="card p-3 mb-4">
       <h3 class="mb-3">Sensor Data (Last 50 entries)</h3>
       <button class="btn btn-primary mb-2" onclick="loadData()">🔄 Refresh</button>
       <div class="table-responsive">
         <table class="table table-striped" id="sensorTable">
           <thead class="table-light">
-            <tr><th>ID</th><th>Topic</th><th>Payload</th><th>Timestamp</th></tr>
+            <tr><th>ID</th><th>Topic</th><th>Payload</th><th>Timestamp</th><th>Actions</th></tr>
           </thead>
           <tbody></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Edit Payload</h5></div>
+        <div class="modal-body">
+          <input type="hidden" id="editId" />
+          <div class="mb-3">
+            <label for="editPayload" class="form-label">New Payload:</label>
+            <input type="text" class="form-control" id="editPayload" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" onclick="submitEdit()">Save</button>
+        </div>
       </div>
     </div>
   </div>
@@ -79,16 +99,73 @@
         `Error: ${result.error || "Unknown error"}`;
     }
 
-    async function loadData() {
-      const res = await fetch("http://localhost:3001/sensors");
-      const data = await res.json();
-      const tbody = document.querySelector("#sensorTable tbody");
-      tbody.innerHTML = "";
-      data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${row.id}</td><td>${row.topic}</td><td>${row.payload}</td><td>${row.timestamp}</td>`;
-        tbody.appendChild(tr);
+   async function loadData() {
+    const res = await fetch("http://localhost:3001/sensors");
+    const data = await res.json();
+    const tbody = document.querySelector("#sensorTable tbody");
+    tbody.innerHTML = "";
+
+    data.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${row.id}</td>
+        <td>${row.topic}</td>
+        <td>${row.payload}</td>
+        <td>${row.timestamp}</td>
+        <td>
+          <button class="btn btn-sm btn-warning me-1">Edit</button>
+          <button class="btn btn-sm btn-danger">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+
+      // Fix: bind event listeners after adding to DOM
+      const [editBtn, deleteBtn] = tr.querySelectorAll("button");
+      editBtn.addEventListener("click", () => openEditModal(row.id, row.payload));
+      deleteBtn.addEventListener("click", () => deleteEntry(row.id));
+    });
+  }
+
+
+    function openEditModal(id, payload) {
+      document.getElementById("editId").value = id;
+      document.getElementById("editPayload").value = payload;
+      new bootstrap.Modal(document.getElementById("editModal")).show();
+    }
+
+    async function submitEdit() {
+      const id = document.getElementById("editId").value;
+      const payload = document.getElementById("editPayload").value;
+
+      const res = await fetch(`http://localhost:3001/sensors/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload })
       });
+
+      const result = await res.json();
+      if (res.ok) {
+        showAlert("✅ Payload updated!", "success");
+        loadData();
+      } else {
+        showAlert(`❌ Update failed: ${result.error}`, "danger");
+      }
+      bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+    }
+
+    async function deleteEntry(id) {
+      if (!confirm(`Are you sure you want to delete entry ID ${id}?`)) return;
+
+      const res = await fetch(`http://localhost:3001/sensors/${id}`, {
+        method: "DELETE"
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        showAlert("🗑️ Entry deleted.", "warning");
+        loadData();
+      } else {
+        showAlert(`❌ Delete failed: ${result.error}`, "danger");
+      }
     }
 
     // Chart structures
@@ -182,5 +259,8 @@
       }
     });
   </script>
+
+  <!-- Bootstrap JS (required for modals) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
