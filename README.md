@@ -402,13 +402,8 @@ node query_logs.js sensor/temperature
 * Prepares the system for future integration with a **RESTful API**
 * Fulfills the requirement to maintain a **queryable history** of data
 
----
 
-### Planned Next Steps
 
-* Implement a **REST API** to provide HTTP access to the data
-* Enable **export** of data in CSV or JSON formats (optional)
-* Build a **web interface** to visualize historical data and alerts
 
 ---
 
