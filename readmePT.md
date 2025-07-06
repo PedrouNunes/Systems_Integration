@@ -823,3 +823,180 @@ Após a atualização no código do ESP32, ao iniciar o sistema:
 * Os dados são processados automaticamente, sem necessidade de recarregar a página
 * O histórico das medições continua acessível por meio da **API REST** e da **tabela de dados da interface**
 
+---
+
+
+## Etapa: CRUD Completo via Interface Web
+
+### Objetivo
+
+Permitir que o usuário visualize, edite e exclua registros de sensores diretamente na interface web, integrando as operações de **Create**, **Read**, **Update** e **Delete** com a API REST e o banco de dados SQLite.
+
+---
+
+### Funcionalidade Implementada
+
+A interface web foi expandida para oferecer um **CRUD completo** sobre os dados armazenados na tabela `sensor_logs`. A funcionalidade contempla:
+
+* **Create**: Inserção automática dos dados por meio do `mqtt_logger.js` (fluxo sensor → MQTT → SQLite);
+* **Read**: Listagem dos 50 registros mais recentes na interface web;
+* **Update**: Edição do campo `payload` de qualquer registro, via modal de edição;
+* **Delete**: Remoção de registros individualmente, com confirmação do usuário.
+
+---
+
+### Implementação Técnica
+
+#### Arquivo: `index.html`
+
+A tabela HTML foi ajustada para incluir uma coluna "Actions" com botões para editar e excluir:
+
+```html
+<tr>
+  <th>ID</th>
+  <th>Topic</th>
+  <th>Payload</th>
+  <th>Timestamp</th>
+  <th>Actions</th>
+</tr>
+```
+
+Cada linha da tabela inclui os botões de forma dinâmica via JavaScript:
+
+```javascript
+const tr = document.createElement("tr");
+tr.innerHTML = `
+  <td>${row.id}</td>
+  <td>${row.topic}</td>
+  <td>${row.payload}</td>
+  <td>${row.timestamp}</td>
+  <td>
+    <button class="btn btn-sm btn-warning me-1">Edit</button>
+    <button class="btn btn-sm btn-danger">Delete</button>
+  </td>`;
+tbody.appendChild(tr);
+
+const [editBtn, deleteBtn] = tr.querySelectorAll("button");
+editBtn.addEventListener("click", () => openEditModal(row.id, row.payload));
+deleteBtn.addEventListener("click", () => deleteEntry(row.id));
+```
+
+---
+
+#### Modal de Edição
+
+Foi criado um modal Bootstrap para editar o valor do campo `payload`:
+
+```html
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Editar Payload</h5></div>
+      <div class="modal-body">
+        <input type="hidden" id="editId" />
+        <input type="text" class="form-control" id="editPayload" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitEdit()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+A função `submitEdit()` envia uma requisição `PUT` para a API:
+
+```javascript
+async function submitEdit() {
+  const id = document.getElementById("editId").value;
+  const payload = document.getElementById("editPayload").value;
+
+  const res = await fetch(`http://localhost:3001/sensors/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload })
+  });
+
+  const result = await res.json();
+  if (res.ok) {
+    showAlert("✅ Payload atualizado!", "success");
+    loadData();
+  } else {
+    showAlert(`❌ Falha ao atualizar: ${result.error}`, "danger");
+  }
+  bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+}
+```
+
+---
+
+#### Exclusão de Registros
+
+A função de exclusão é executada com confirmação simples:
+
+```javascript
+async function deleteEntry(id) {
+  if (!confirm(`Deseja realmente excluir o registro ID ${id}?`)) return;
+
+  const res = await fetch(`http://localhost:3001/sensors/${id}`, { method: "DELETE" });
+  const result = await res.json();
+
+  if (res.ok) {
+    showAlert("🗑️ Registro excluído.", "warning");
+    loadData();
+  } else {
+    showAlert(`❌ Falha ao excluir: ${result.error}`, "danger");
+  }
+}
+```
+
+---
+
+### Arquivo: `api.js`
+
+Foram adicionadas duas rotas na API para suportar as operações de edição (`PUT`) e exclusão (`DELETE`):
+
+```js
+// PUT /sensors/:id
+app.put("/sensors/:id", (req, res) => {
+  const { id } = req.params;
+  const { payload } = req.body;
+
+  if (typeof payload !== "string") {
+    return res.status(400).json({ error: "Payload inválido" });
+  }
+
+  const sql = "UPDATE sensor_logs SET payload = ? WHERE id = ?";
+  db.run(sql, [payload, id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: "Registro não encontrado" });
+    res.json({ message: "Registro atualizado com sucesso" });
+  });
+});
+
+// DELETE /sensors/:id
+app.delete("/sensors/:id", (req, res) => {
+  const { id } = req.params;
+  db.run("DELETE FROM sensor_logs WHERE id = ?", [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: "Registro não encontrado" });
+    res.json({ message: "Registro excluído com sucesso" });
+  });
+});
+```
+
+---
+
+### Resultado
+
+Com essa etapa concluída, o sistema passa a oferecer um **CRUD completo via interface web**. Agora, o usuário pode:
+
+* Visualizar os dados mais recentes dos sensores
+* Editar registros diretamente pelo navegador
+* Excluir entradas antigas, duplicadas ou inválidas
+* Utilizar o mesmo painel para gráficos em tempo real, alertas e edição de dados históricos
+
+---
+
+
