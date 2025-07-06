@@ -133,12 +133,7 @@ mosquitto_sub -h 192.168.1.241 -t "#" -v
 
 ---
 
-### Próximos Passos Sugeridos 
 
-* Criar Thing Descriptions (JSON-LD) para os sensores e atuadores
-* Implementar uma API REST com banco de dados para histórico
-* Criar um painel web para visualização e controle
-* Implementar autenticação para MQTT ou HTTP
 
 ---
 ## Manual do Sistema WoT com ESP32 + MQTT + Thing Descriptions
@@ -252,16 +247,9 @@ Essa etapa cumpre os seguintes requisitos obrigatórios definidos no enunciado d
 | 3         | As “Things” devem ser descritas por Thing Descriptions em formato JSON-LD |
 | 11        | O sistema deve seguir a arquitetura Web of Things proposta pelo W3C       |
 
----
 
-### Pronto para os Próximos Passos
 
-Com o servidor WoT operando corretamente, é possível agora:
 
-1. Testar os arquivos `.jsonld` com clientes WoT automáticos, como o Thingweb CLI
-2. Desenvolver uma API RESTful para sensores e atuadores
-3. Construir um painel web com HTML/JavaScript para visualização e controle
-4. Integrar o sistema com um banco de dados para histórico de medições
 
 ---
 ## Manual do Sistema WoT com ESP32 + MQTT + Thing Descriptions
@@ -426,12 +414,7 @@ node query_logs.js sensor/temperature
 
 ---
 
-### Próximos Passos Planejados
 
-* Criar uma **API REST** para permitir acesso aos dados via HTTP
-* Adicionar funcionalidade para **exportar os dados** em formatos como CSV ou JSON (opcional)
-* Desenvolver uma **interface web** para visualização de históricos e alertas registrados
----
 ## Manual do Sistema WoT com ESP32 + MQTT + Thing Descriptions
 
 **Parte 5 — API REST para Consulta e Controle**
