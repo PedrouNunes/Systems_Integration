@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WoT Sensor Dashboard</title>
+
+  <!-- Bootstrap local -->
+  <link rel="stylesheet" href="css/bootstrap.min.css" />
+
+  <!-- MQTT.js via CDN -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h1 class="mb-4">🌐 WoT Sensor Dashboard</h1>
+
+    <!-- LED Control Section -->
+    <div class="card p-3 mb-4">
+      <h3>LED Control</h3>
+      <div class="mb-2">
+        <button class="btn btn-success me-2" onclick="toggleLED(true)">Turn ON</button>
+        <button class="btn btn-danger" onclick="toggleLED(false)">Turn OFF</button>
+      </div>
+      <div class="alert alert-secondary" id="ledStatus">Status: Waiting...</div>
+    </div>
+
+    <!-- Sensor Data Table -->
+    <div class="card p-3 mb-4">
+      <h3 class="mb-3">Sensor Data (Last 50 entries)</h3>
+      <button class="btn btn-primary mb-2" onclick="loadData()">🔄 Refresh</button>
+      <div class="table-responsive">
+        <table class="table table-striped" id="sensorTable">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Topic</th>
+              <th>Payload</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toggle LED via REST
+    async function toggleLED(state) {
+      const res = await fetch("http://localhost:3001/led", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state })
+      });
+
+      const result = await res.json();
+      const statusDiv = document.getElementById("ledStatus");
+      if (res.ok) {
+        statusDiv.textContent = `LED command sent: ${state ? "ON" : "OFF"}`;
+      } else {
+        statusDiv.textContent = `Error: ${result.error || "Unknown error"}`;
+      }
+    }
+
+    // Load sensor data via REST
+    async function loadData() {
+      const res = await fetch("http://localhost:3001/sensors");
+      const data = await res.json();
+
+      const tbody = document.querySelector("#sensorTable tbody");
+      tbody.innerHTML = "";
+
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.id}</td>
+          <td>${row.topic}</td>
+          <td>${row.payload}</td>
+          <td>${row.timestamp}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Load on page load
+    window.onload = loadData;
+
+    // MQTT real-time updates
+    const mqttClient = mqtt.connect("ws://192.168.1.241:9001");
+
+    mqttClient.on("connect", () => {
+      console.log("✅ Connected to MQTT broker (WebSocket)");
+      mqttClient.subscribe("sensor/temperature");
+      mqttClient.subscribe("sensor/humidity");
+      mqttClient.subscribe("alert/motion");
+      mqttClient.subscribe("alert/climate");
+    });
+
+    mqttClient.on("message", (topic, message) => {
+      const payload = message.toString();
+      const statusDiv = document.getElementById("ledStatus");
+
+      if (topic === "sensor/temperature") {
+        statusDiv.innerHTML = `🌡️ Temperature: ${payload} °C`;
+      } else if (topic === "sensor/humidity") {
+        statusDiv.innerHTML += `<br>💧 Humidity: ${payload} %`;
+      } else if (topic === "alert/motion" && payload === "1") {
+        alert("🚨 Motion detected!");
+      } else if (topic === "alert/climate" && payload === "1") {
+        alert("⚠️ Climate alert triggered!");
+      }
+    });
+  </script>
+</body>
+</html>

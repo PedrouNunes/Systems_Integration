@@ -3,9 +3,13 @@ const sqlite3 = require("sqlite3").verbose();
 const mqtt = require("mqtt");
 const bodyParser = require("body-parser");
 const path = require("path");
+const cors = require("cors"); // ✅ CORS added
 
 const app = express();
 const PORT = 3001;
+
+// ✅ Enable CORS for all routes
+app.use(cors());
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
