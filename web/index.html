@@ -3,19 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <title>WoT Sensor Dashboard</title>
-
-  <!-- Bootstrap local -->
   <link rel="stylesheet" href="css/bootstrap.min.css" />
-
-  <!-- MQTT.js -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light">
   <div class="container py-4">
     <h1 class="mb-4">🌐 WoT Sensor Dashboard</h1>
+    <div id="alertArea"></div>
 
     <!-- LED Control -->
     <div class="card p-3 mb-4">
@@ -31,19 +26,21 @@
     <div class="card p-3 mb-4">
       <h3>Real-time Charts</h3>
       <div class="row">
-        <div class="col-md-6">
-          <canvas id="tempChart"></canvas>
-        </div>
-        <div class="col-md-6">
-          <canvas id="humChart"></canvas>
-        </div>
+        <div class="col-md-6"><canvas id="tempChart"></canvas></div>
+        <div class="col-md-6"><canvas id="humChart"></canvas></div>
       </div>
     </div>
 
-    <!-- Motion Chart -->
+    <!-- Acceleration Chart -->
     <div class="card p-3 mb-4">
-      <h3>Real-time Motion (MPU6050)</h3>
-      <canvas id="motionChart"></canvas>
+      <h3>Acceleration (MPU6050)</h3>
+      <canvas id="accelChart"></canvas>
+    </div>
+
+    <!-- Gyroscope Chart -->
+    <div class="card p-3 mb-4">
+      <h3>Gyroscope (MPU6050)</h3>
+      <canvas id="gyroChart"></canvas>
     </div>
 
     <!-- Sensor Data Table -->
@@ -53,12 +50,7 @@
       <div class="table-responsive">
         <table class="table table-striped" id="sensorTable">
           <thead class="table-light">
-            <tr>
-              <th>ID</th>
-              <th>Topic</th>
-              <th>Payload</th>
-              <th>Timestamp</th>
-            </tr>
+            <tr><th>ID</th><th>Topic</th><th>Payload</th><th>Timestamp</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -67,116 +59,78 @@
   </div>
 
   <script>
-    // Toggle LED via REST
+    function showAlert(message, type = "info", duration = 5000) {
+      const alertDiv = document.createElement("div");
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.innerHTML = message;
+      document.getElementById("alertArea").appendChild(alertDiv);
+      setTimeout(() => alertDiv.remove(), duration);
+    }
+
     async function toggleLED(state) {
       const res = await fetch("http://localhost:3001/led", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ state })
       });
-
       const result = await res.json();
-      const statusDiv = document.getElementById("ledStatus");
-      if (res.ok) {
-        statusDiv.textContent = `LED command sent: ${state ? "ON" : "OFF"}`;
-      } else {
-        statusDiv.textContent = `Error: ${result.error || "Unknown error"}`;
-      }
+      document.getElementById("ledStatus").textContent = res.ok ?
+        `LED command sent: ${state ? "ON" : "OFF"}` :
+        `Error: ${result.error || "Unknown error"}`;
     }
 
-    // Load sensor data via REST
     async function loadData() {
       const res = await fetch("http://localhost:3001/sensors");
       const data = await res.json();
-
       const tbody = document.querySelector("#sensorTable tbody");
       tbody.innerHTML = "";
-
       data.forEach(row => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.id}</td>
-          <td>${row.topic}</td>
-          <td>${row.payload}</td>
-          <td>${row.timestamp}</td>
-        `;
+        tr.innerHTML = `<td>${row.id}</td><td>${row.topic}</td><td>${row.payload}</td><td>${row.timestamp}</td>`;
         tbody.appendChild(tr);
       });
     }
 
-    // Initialize charts
-    const tempData = {
-      labels: [],
-      datasets: [{
-        label: "Temperature (°C)",
-        data: [],
-        borderColor: "rgba(255, 99, 132, 1)",
-        backgroundColor: "rgba(255, 99, 132, 0.2)",
-        tension: 0.3
-      }]
-    };
+    // Chart structures
+    const tempData = { labels: [], datasets: [{ label: "Temperature (°C)", data: [], borderColor: "rgba(255,99,132,1)", backgroundColor: "rgba(255,99,132,0.2)", tension: 0.3 }] };
+    const humData  = { labels: [], datasets: [{ label: "Humidity (%)", data: [], borderColor: "rgba(54,162,235,1)", backgroundColor: "rgba(54,162,235,0.2)", tension: 0.3 }] };
 
-    const humData = {
-      labels: [],
-      datasets: [{
-        label: "Humidity (%)",
-        data: [],
-        borderColor: "rgba(54, 162, 235, 1)",
-        backgroundColor: "rgba(54, 162, 235, 0.2)",
-        tension: 0.3
-      }]
-    };
-
-    const motionData = {
+    const accelData = {
       labels: [],
       datasets: [
-        {
-          label: "AcX",
-          data: [],
-          borderColor: "rgba(255, 159, 64, 1)",
-          backgroundColor: "rgba(255, 159, 64, 0.2)",
-          tension: 0.3
-        },
-        {
-          label: "AcY",
-          data: [],
-          borderColor: "rgba(153, 102, 255, 1)",
-          backgroundColor: "rgba(153, 102, 255, 0.2)",
-          tension: 0.3
-        },
-        {
-          label: "AcZ",
-          data: [],
-          borderColor: "rgba(75, 192, 192, 1)",
-          backgroundColor: "rgba(75, 192, 192, 0.2)",
-          tension: 0.3
-        }
+        { label: "AcX", data: [], borderColor: "orange", backgroundColor: "orange", tension: 0.3 },
+        { label: "AcY", data: [], borderColor: "purple", backgroundColor: "purple", tension: 0.3 },
+        { label: "AcZ", data: [], borderColor: "green", backgroundColor: "green", tension: 0.3 }
       ]
     };
 
-    const tempChart = new Chart(document.getElementById("tempChart"), {
-      type: "line",
-      data: tempData
-    });
+    const gyroData = {
+      labels: [],
+      datasets: [
+        { label: "GyX", data: [], borderColor: "gold", backgroundColor: "gold", tension: 0.3 },
+        { label: "GyY", data: [], borderColor: "gray", backgroundColor: "gray", tension: 0.3 },
+        { label: "GyZ", data: [], borderColor: "blue", backgroundColor: "blue", tension: 0.3 }
+      ]
+    };
 
-    const humChart = new Chart(document.getElementById("humChart"), {
-      type: "line",
-      data: humData
-    });
+    const tempChart  = new Chart(document.getElementById("tempChart"), { type: "line", data: tempData });
+    const humChart   = new Chart(document.getElementById("humChart"), { type: "line", data: humData });
+    const accelChart = new Chart(document.getElementById("accelChart"), { type: "line", data: accelData });
+    const gyroChart  = new Chart(document.getElementById("gyroChart"), { type: "line", data: gyroData });
 
-    const motionChart = new Chart(document.getElementById("motionChart"), {
-      type: "line",
-      data: motionData
-    });
+    const limitData = (chart) => {
+      if (chart.data.labels.length > 20) {
+        chart.data.labels.shift();
+        chart.data.datasets.forEach(ds => ds.data.shift());
+      }
+    };
 
-    // Load data when page loads
     window.onload = loadData;
 
-    // MQTT connection
     const mqttClient = mqtt.connect("ws://192.168.1.241:9001");
 
     mqttClient.on("connect", () => {
-      console.log("✅ Connected to MQTT broker (WebSocket)");
+      console.log("Connected to MQTT broker (WebSocket)");
       mqttClient.subscribe("sensor/temperature");
       mqttClient.subscribe("sensor/humidity");
       mqttClient.subscribe("sensor/motion");
@@ -186,53 +140,45 @@
 
     mqttClient.on("message", (topic, message) => {
       const payload = message.toString();
+      const time = new Date().toLocaleTimeString();
       const statusDiv = document.getElementById("ledStatus");
-      const timestamp = new Date().toLocaleTimeString();
 
       if (topic === "sensor/temperature") {
         const value = parseFloat(payload);
-        statusDiv.innerHTML = `🌡️ Temperature: ${value} °C`;
-
-        tempData.labels.push(timestamp);
+        statusDiv.innerHTML = `Temperature: ${value} °C`;
+        tempData.labels.push(time);
         tempData.datasets[0].data.push(value);
-        if (tempData.labels.length > 20) {
-          tempData.labels.shift();
-          tempData.datasets[0].data.shift();
-        }
-        tempChart.update();
+        limitData(tempChart); tempChart.update();
 
       } else if (topic === "sensor/humidity") {
         const value = parseFloat(payload);
-        statusDiv.innerHTML += `<br>💧 Humidity: ${value} %`;
-
-        humData.labels.push(timestamp);
+        statusDiv.innerHTML += `<br>Humidity: ${value} %`;
+        humData.labels.push(time);
         humData.datasets[0].data.push(value);
-        if (humData.labels.length > 20) {
-          humData.labels.shift();
-          humData.datasets[0].data.shift();
-        }
-        humChart.update();
+        limitData(humChart); humChart.update();
 
       } else if (topic === "sensor/motion") {
         try {
-          const motion = JSON.parse(payload);
-          motionData.labels.push(timestamp);
-          motionData.datasets[0].data.push(motion.AcX);
-          motionData.datasets[1].data.push(motion.AcY);
-          motionData.datasets[2].data.push(motion.AcZ);
-          if (motionData.labels.length > 20) {
-            motionData.labels.shift();
-            motionData.datasets.forEach(ds => ds.data.shift());
-          }
-          motionChart.update();
+          const m = JSON.parse(payload);
+          accelData.labels.push(time);
+          accelData.datasets[0].data.push(m.AcX);
+          accelData.datasets[1].data.push(m.AcY);
+          accelData.datasets[2].data.push(m.AcZ);
+          gyroData.labels.push(time);
+          gyroData.datasets[0].data.push(m.GyX);
+          gyroData.datasets[1].data.push(m.GyY);
+          gyroData.datasets[2].data.push(m.GyZ);
+
+          limitData(accelChart); accelChart.update();
+          limitData(gyroChart);  gyroChart.update();
         } catch (e) {
-          console.error("Invalid motion payload:", payload);
+          console.error("Invalid motion payload", payload);
         }
 
       } else if (topic === "alert/motion" && payload === "1") {
-        alert("🚨 Motion detected!");
+        showAlert("🚨 Motion detected!", "danger");
       } else if (topic === "alert/climate" && payload === "1") {
-        alert("⚠️ Climate alert triggered!");
+        showAlert("⚠️ Climate alert triggered!", "warning");
       }
     });
   </script>

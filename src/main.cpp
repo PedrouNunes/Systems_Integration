@@ -126,11 +126,14 @@ void publishSensorData(float temp, float hum) {
 }
 
 void publishMotionData() {
-  StaticJsonDocument<128> json;
+  StaticJsonDocument<256> json;
   json["AcX"] = AcX;
   json["AcY"] = AcY;
   json["AcZ"] = AcZ;
-  char buffer[128];
+  json["GyX"] = GyX;
+  json["GyY"] = GyY;
+  json["GyZ"] = GyZ;
+  char buffer[256];
   serializeJson(json, buffer);
   client.publish("sensor/motion", buffer);
 }
