@@ -7,11 +7,11 @@ const clients = [{
 }];
 
 module.exports = {
-  // Valida clientId e clientSecret recebidos
+  // validate clientId and clientSecret recieved
   getClient: (clientId, clientSecret) =>
     clients.find(c => c.clientId === clientId && c.clientSecret === clientSecret),
 
-  // Salva o token emitido
+  // salve the emited token 
   saveToken: (token, client, user) => {
     tokens[token.accessToken] = {
       accessToken: token.accessToken,
@@ -22,12 +22,12 @@ module.exports = {
     return tokens[token.accessToken];
   },
 
-  // Busca token para autenticação nas rotas protegidas
+  // search for token to autenticate in the routs
   getAccessToken: (accessToken) => {
     const token = tokens[accessToken];
     return token ? { ...token, user: {}, client: {} } : null;
   },
 
-  // Método auxiliar para introspecção externa (opcional)
+  // check if the token is valid
   isTokenValid: (token) => !!tokens[token]
 };

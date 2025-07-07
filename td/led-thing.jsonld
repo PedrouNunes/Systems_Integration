@@ -3,7 +3,6 @@
   "title": "LED Actuator",
   "description": "Thing Description for MQTT-based LED",
   "id": "urn:dev:wot:led",
-  "base": "mqtt://192.168.1.241",
   "securityDefinitions": {
     "oauth2_auth": {
       "scheme": "oauth2",
@@ -15,12 +14,12 @@
   "security": ["oauth2_auth"],
   "properties": {
     "state": {
-      "type": "boolean",
+      "type": "string",
+      "enum": ["0", "1"],
       "readOnly": false,
-      "writeOnly": false,
       "forms": [
         {
-          "href": "/actuator/led",
+          "href": "mqtt://192.168.1.241/actuator/led",
           "contentType": "application/json",
           "op": ["readproperty", "writeproperty"],
           "subprotocol": "mqtt",

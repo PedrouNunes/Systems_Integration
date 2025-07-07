@@ -55,6 +55,23 @@
         }
       ]
     },
+    "gyroscope": {
+      "type": "object",
+      "readOnly": true,
+      "properties": {
+        "GyX": { "type": "integer" },
+        "GyY": { "type": "integer" },
+        "GyZ": { "type": "integer" }
+      },
+      "forms": [
+        {
+          "href": "mqtt://192.168.1.241/sensor/motion",
+          "contentType": "application/json",
+          "op": "readproperty",
+          "security": ["oauth2_auth"]
+        }
+      ]
+    },
     "ledState": {
       "type": "boolean",
       "readOnly": false,

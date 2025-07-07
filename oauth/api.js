@@ -14,11 +14,11 @@ const publicKey = fs.readFileSync("public.pem");
 app.use(cors());
 app.use(bodyParser.json());
 
-// Middleware para verificar o token JWT assinado
+// Middleware to verify signed JWT token
 function verifyJWT(req, res, next) {
   const authHeader = req.headers["authorization"];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.log("Acesso bloqueado: sem token");
+    console.log("Access denied: missing token");
     return res.status(401).json({ error: "Missing Bearer token" });
   }
 
@@ -26,20 +26,19 @@ function verifyJWT(req, res, next) {
   try {
     const payload = jwt.verify(token, publicKey, { algorithms: ["RS256"] });
     req.user = payload;
-    console.log("✅ Token válido:", payload);
+    console.log("✅ Valid token:", payload);
     next();
   } catch (err) {
-    console.log("Token inválido:", err.message);
+    console.log("Invalid token:", err.message);
     return res.status(403).json({ error: "Invalid or expired token" });
   }
 }
 
-
-// SQLite
+// SQLite configuration
 const dbPath = path.join(__dirname, "../sensor_data.db");
 const db = new sqlite3.Database(dbPath);
 
-// MQTT
+// MQTT configuration
 const mqttClient = mqtt.connect("mqtt://192.168.1.241");
 const mqttLedTopic = "actuator/led";
 
@@ -47,7 +46,7 @@ mqttClient.on("connect", () => {
   console.log("Connected to MQTT broker.");
 });
 
-// Public route
+// Public route: Get latest 50 sensor logs
 app.get("/sensors", (req, res) => {
   db.all("SELECT * FROM sensor_logs ORDER BY timestamp DESC LIMIT 50", (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -55,6 +54,7 @@ app.get("/sensors", (req, res) => {
   });
 });
 
+// Public route: Get latest 50 logs for a specific topic
 app.get("/sensors/:topic", (req, res) => {
   const topic = req.params.topic;
   db.all(
@@ -67,7 +67,7 @@ app.get("/sensors/:topic", (req, res) => {
   );
 });
 
-// Protected: LED control
+// Protected route: Control LED
 app.post("/led", verifyJWT, (req, res) => {
   const { state } = req.body;
   if (typeof state !== "boolean") {
@@ -81,7 +81,7 @@ app.post("/led", verifyJWT, (req, res) => {
   });
 });
 
-// Protected: Update
+// Protected route: Update sensor record
 app.put("/sensors/:id", verifyJWT, (req, res) => {
   const { id } = req.params;
   const { payload } = req.body;
@@ -98,7 +98,7 @@ app.put("/sensors/:id", verifyJWT, (req, res) => {
   });
 });
 
-// Protected: Delete
+// Protected route: Delete sensor record
 app.delete("/sensors/:id", verifyJWT, (req, res) => {
   const { id } = req.params;
   const sql = "DELETE FROM sensor_logs WHERE id = ?";
@@ -110,5 +110,5 @@ app.delete("/sensors/:id", verifyJWT, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`API REST with JWT validation running at http://localhost:${PORT}`);
+  console.log(`REST API with JWT validation running at http://localhost:${PORT}`);
 });

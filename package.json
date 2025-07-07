@@ -23,6 +23,10 @@
   },
   "homepage": "https://github.com/PedrouNunes/Systems_Integration#readme",
   "dependencies": {
+    "@node-wot/binding-file": "^0.9.1",
+    "@node-wot/binding-http": "^0.9.1",
+    "@node-wot/binding-mqtt": "^0.9.1",
+    "@node-wot/core": "^0.9.1",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",

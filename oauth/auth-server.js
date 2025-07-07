@@ -11,11 +11,11 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Endpoint para emitir token OAuth 2.0 JWT
+// Endpoint to emit token OAuth 2.0 JWT
 app.post("/token", (req, res) => {
   const { client_id, client_secret } = req.body;
 
-  // Validação simples
+  // simple validation
   if (client_id !== "my-client" || client_secret !== "my-secret") {
     return res.status(401).json({ error: "Invalid client credentials" });
   }
