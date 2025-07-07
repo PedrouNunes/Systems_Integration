@@ -816,6 +816,181 @@ After updating the ESP32:
 * The web dashboard correctly displays **real-time charts** for both acceleration and gyroscope data
 * The charts update automatically without requiring a page refresh
 * The historical data can still be accessed through the **REST API** and the data table on the interface
+---
+
+## Step: Full CRUD Functionality via Web Interface
+
+### Objective
+
+Allow users to view, edit, and delete sensor records directly through the web interface, integrating **Create**, **Read**, **Update**, and **Delete** operations with the REST API and the SQLite database.
+
+---
+
+### Implemented Functionality
+
+The web interface was extended to support a **complete CRUD** over the data stored in the `sensor_logs` table. The interface now supports:
+
+* **Create**: Automatic insertion of data via `mqtt_logger.js` (sensor → MQTT → SQLite)
+* **Read**: Display of the 50 most recent records in the interface
+* **Update**: Editing of the `payload` field for any record through a modal
+* **Delete**: Direct deletion of records with user confirmation
+
+---
+
+### Technical Implementation
+
+#### File: `index.html`
+
+The data table was updated to include an **"Actions"** column with Edit and Delete buttons for each record:
+
+```html
+<tr>
+  <th>ID</th>
+  <th>Topic</th>
+  <th>Payload</th>
+  <th>Timestamp</th>
+  <th>Actions</th>
+</tr>
+```
+
+Each row includes buttons created dynamically via JavaScript:
+
+```javascript
+const tr = document.createElement("tr");
+tr.innerHTML = `
+  <td>${row.id}</td>
+  <td>${row.topic}</td>
+  <td>${row.payload}</td>
+  <td>${row.timestamp}</td>
+  <td>
+    <button class="btn btn-sm btn-warning me-1">Edit</button>
+    <button class="btn btn-sm btn-danger">Delete</button>
+  </td>`;
+tbody.appendChild(tr);
+
+const [editBtn, deleteBtn] = tr.querySelectorAll("button");
+editBtn.addEventListener("click", () => openEditModal(row.id, row.payload));
+deleteBtn.addEventListener("click", () => deleteEntry(row.id));
+```
+
+---
+
+#### Edit Modal
+
+A Bootstrap modal was created to allow editing of the `payload` value:
+
+```html
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Edit Payload</h5></div>
+      <div class="modal-body">
+        <input type="hidden" id="editId" />
+        <input type="text" class="form-control" id="editPayload" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="submitEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+The `submitEdit()` function sends a `PUT` request to the API:
+
+```javascript
+async function submitEdit() {
+  const id = document.getElementById("editId").value;
+  const payload = document.getElementById("editPayload").value;
+
+  const res = await fetch(`http://localhost:3001/sensors/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload })
+  });
+
+  const result = await res.json();
+  if (res.ok) {
+    showAlert("✅ Payload updated!", "success");
+    loadData();
+  } else {
+    showAlert(`❌ Update failed: ${result.error}`, "danger");
+  }
+  bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+}
+```
+
+---
+
+#### Record Deletion
+
+Deletion is handled with a simple confirmation dialog:
+
+```javascript
+async function deleteEntry(id) {
+  if (!confirm(`Are you sure you want to delete entry ID ${id}?`)) return;
+
+  const res = await fetch(`http://localhost:3001/sensors/${id}`, { method: "DELETE" });
+  const result = await res.json();
+
+  if (res.ok) {
+    showAlert("🗑️ Entry deleted.", "warning");
+    loadData();
+  } else {
+    showAlert(`❌ Delete failed: ${result.error}`, "danger");
+  }
+}
+```
+
+---
+
+### File: `api.js`
+
+The following API routes were added to support `PUT` and `DELETE` operations:
+
+```js
+// PUT /sensors/:id
+app.put("/sensors/:id", (req, res) => {
+  const { id } = req.params;
+  const { payload } = req.body;
+
+  if (typeof payload !== "string") {
+    return res.status(400).json({ error: "Invalid 'payload'" });
+  }
+
+  const sql = "UPDATE sensor_logs SET payload = ? WHERE id = ?";
+  db.run(sql, [payload, id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: "Record not found" });
+    res.json({ message: "Record updated successfully" });
+  });
+});
+
+// DELETE /sensors/:id
+app.delete("/sensors/:id", (req, res) => {
+  const { id } = req.params;
+  db.run("DELETE FROM sensor_logs WHERE id = ?", [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: "Record not found" });
+    res.json({ message: "Record deleted successfully" });
+  });
+});
+```
+
+---
+
+### Result
+
+After this implementation, the system supports a **fully functional CRUD interface**. The user can:
+
+* View the latest sensor records
+* Edit specific entries directly from the browser
+* Delete outdated, invalid, or unwanted entries
+* Interact with the same panel that provides real-time charts and alerts
+
+---
+
 
 ---
 
