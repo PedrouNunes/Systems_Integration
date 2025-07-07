@@ -1231,6 +1231,136 @@ node consumer.js
 Authorization: Bearer eyJ...
 ```
 
+## Consuming Things with OAuth 2.0 (WoT Consumers)
+
+The system implements three distinct WoT consumers that interact with devices described by Thing Descriptions secured via **OAuth 2.0**. Each consumer is built using the `@node-wot/core` package and the **MQTT binding**, with authentication performed through the **client\_credentials** grant flow.
+
+---
+
+### OAuth 2.0 Security in the Consumers
+
+All consumers follow the same authentication pattern:
+
+```js
+servient.addCredentials({
+  "urn:dev:wot:[thing-id]": {
+    clientId: "my-client",
+    clientSecret: "my-secret",
+    token: "http://localhost:3000/token"
+  }
+});
+```
+
+This setup allows each consumer to automatically request an access token and interact with protected Things.
+
+---
+
+## `consumer-dht11.js` – Reading Temperature and Humidity
+
+This consumer accesses the TD `dht11-thing.jsonld` and reads the `temperature` and `humidity` properties.
+
+**Example Code:**
+
+```js
+const temp = await thing.readProperty("temperature");
+const hum = await thing.readProperty("humidity");
+```
+
+**Execution:**
+
+```bash
+cd Systems_Integration/consumer
+node consumer-dht11.js
+```
+
+---
+
+## `consumer-mpu6050.js` – Reading Acceleration and Subscribing to Events
+
+This consumer interacts with the TD `mpu6050-thing.jsonld` and performs:
+
+* Reading the `acceleration` property (AcX, AcY, AcZ)
+* Subscribing to the `motionAlert` event
+
+**Example Code:**
+
+```js
+const accel = await thing.readProperty("acceleration");
+thing.subscribeEvent("motionAlert", (data) => {
+  console.log("Motion Alert:", data);
+});
+```
+
+**Execution:**
+
+```bash
+node consumer-mpu6050.js
+```
+
+---
+
+## `consumer-led.js` – Controlling the Actuator (LED)
+
+This consumer uses the TD `led-thing.jsonld` to send MQTT commands with payloads `"1"` and `"0"` to turn the LED on and off.
+
+The `state` property in the TD was defined as:
+
+```json
+"type": "string",
+"enum": ["0", "1"]
+```
+
+**Example Code:**
+
+```js
+await thing.writeProperty("state", "1"); // Turn ON
+await thing.writeProperty("state", "0"); // Turn OFF
+```
+
+**Execution:**
+
+```bash
+node consumer-led.js
+```
+
+---
+
+## Thing Descriptions Used
+
+* `dht11-thing.jsonld`: exposes `temperature` and `humidity` over MQTT
+* `mpu6050-thing.jsonld`: exposes `acceleration` and `motionAlert` event
+* `led-thing.jsonld`: exposes the `state` property for LED control
+
+All Thing Descriptions implement the following security definition:
+
+```json
+"securityDefinitions": {
+  "oauth2_auth": {
+    "scheme": "oauth2",
+    "flow": "client",
+    "token": "http://localhost:3000/token",
+    "scopes": ["default"]
+  }
+},
+"security": ["oauth2_auth"]
+```
+
+---
+
+## Conclusion
+
+This stage demonstrates:
+
+* Advanced usage of Web of Things with OAuth 2.0 authentication
+* Secure consumption of multiple Things
+* Full interoperability with real-world sensors and actuators (ESP32 + MQTT)
+* Clear separation of concerns through distinct Thing Descriptions and consumer modules
+
+Each consumer is modular and secure, reinforcing key principles of **interoperability**, **security**, and **scalability** in IoT systems.
+
+
+
+
 
 
 
