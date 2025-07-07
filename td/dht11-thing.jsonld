@@ -1,11 +1,16 @@
 {
-  "@context": ["https://www.w3.org/2019/wot/td/v1", {"@language": "en"}],
+  "@context": ["https://www.w3.org/2019/wot/td/v1", { "@language": "en" }],
   "title": "DHT11 Sensor",
   "id": "urn:dev:wot:dht11",
   "securityDefinitions": {
-    "nosec_sc": { "scheme": "nosec" }
+    "oauth2_auth": {
+      "scheme": "oauth2",
+      "flow": "client",
+      "token": "http://localhost:3000/token",
+      "scopes": ["default"]
+    }
   },
-  "security": ["nosec_sc"],
+  "security": ["oauth2_auth"],
   "properties": {
     "temperature": {
       "type": "number",
@@ -15,7 +20,8 @@
         {
           "href": "mqtt://192.168.1.241/sensor/temperature",
           "contentType": "application/json",
-          "op": "readproperty"
+          "op": "readproperty",
+          "security": ["oauth2_auth"]
         }
       ]
     },
@@ -27,7 +33,8 @@
         {
           "href": "mqtt://192.168.1.241/sensor/humidity",
           "contentType": "application/json",
-          "op": "readproperty"
+          "op": "readproperty",
+          "security": ["oauth2_auth"]
         }
       ]
     }

@@ -1,11 +1,16 @@
 {
-  "@context": ["https://www.w3.org/2019/wot/td/v1", {"@language": "en"}],
+  "@context": ["https://www.w3.org/2019/wot/td/v1", { "@language": "en" }],
   "title": "MPU6050 Sensor",
   "id": "urn:dev:wot:mpu6050",
   "securityDefinitions": {
-    "nosec_sc": { "scheme": "nosec" }
+    "oauth2_auth": {
+      "scheme": "oauth2",
+      "flow": "client",
+      "token": "http://localhost:3000/token",
+      "scopes": ["default"]
+    }
   },
-  "security": ["nosec_sc"],
+  "security": ["oauth2_auth"],
   "properties": {
     "acceleration": {
       "type": "object",
@@ -19,7 +24,8 @@
         {
           "href": "mqtt://192.168.1.241/sensor/motion",
           "contentType": "application/json",
-          "op": "readproperty"
+          "op": "readproperty",
+          "security": ["oauth2_auth"]
         }
       ]
     }
@@ -32,7 +38,8 @@
           "href": "mqtt://192.168.1.241/alert/motion",
           "subprotocol": "mqtt",
           "contentType": "application/json",
-          "op": "subscribeevent"
+          "op": "subscribeevent",
+          "security": ["oauth2_auth"]
         }
       ]
     }

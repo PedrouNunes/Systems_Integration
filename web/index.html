@@ -79,6 +79,29 @@
   </div>
 
   <script>
+    let accessToken = "";
+
+    async function getAccessToken() {
+      const res = await fetch("http://localhost:3000/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: "my-client",
+          client_secret: "my-secret"
+        })
+      });
+      const data = await res.json();
+      accessToken = data.access_token;
+    }
+
+    function getAuthHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`
+      };
+    }
+
     function showAlert(message, type = "info", duration = 5000) {
       const alertDiv = document.createElement("div");
       alertDiv.className = `alert alert-${type}`;
@@ -90,7 +113,7 @@
     async function toggleLED(state) {
       const res = await fetch("http://localhost:3001/led", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ state })
       });
       const result = await res.json();
@@ -99,32 +122,30 @@
         `Error: ${result.error || "Unknown error"}`;
     }
 
-   async function loadData() {
-    const res = await fetch("http://localhost:3001/sensors");
-    const data = await res.json();
-    const tbody = document.querySelector("#sensorTable tbody");
-    tbody.innerHTML = "";
+    async function loadData() {
+      const res = await fetch("http://localhost:3001/sensors");
+      const data = await res.json();
+      const tbody = document.querySelector("#sensorTable tbody");
+      tbody.innerHTML = "";
 
-    data.forEach(row => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.id}</td>
-        <td>${row.topic}</td>
-        <td>${row.payload}</td>
-        <td>${row.timestamp}</td>
-        <td>
-          <button class="btn btn-sm btn-warning me-1">Edit</button>
-          <button class="btn btn-sm btn-danger">Delete</button>
-        </td>`;
-      tbody.appendChild(tr);
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.id}</td>
+          <td>${row.topic}</td>
+          <td>${row.payload}</td>
+          <td>${row.timestamp}</td>
+          <td>
+            <button class="btn btn-sm btn-warning me-1">Edit</button>
+            <button class="btn btn-sm btn-danger">Delete</button>
+          </td>`;
+        tbody.appendChild(tr);
 
-      // Fix: bind event listeners after adding to DOM
-      const [editBtn, deleteBtn] = tr.querySelectorAll("button");
-      editBtn.addEventListener("click", () => openEditModal(row.id, row.payload));
-      deleteBtn.addEventListener("click", () => deleteEntry(row.id));
-    });
-  }
-
+        const [editBtn, deleteBtn] = tr.querySelectorAll("button");
+        editBtn.addEventListener("click", () => openEditModal(row.id, row.payload));
+        deleteBtn.addEventListener("click", () => deleteEntry(row.id));
+      });
+    }
 
     function openEditModal(id, payload) {
       document.getElementById("editId").value = id;
@@ -138,7 +159,7 @@
 
       const res = await fetch(`http://localhost:3001/sensors/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ payload })
       });
 
@@ -156,7 +177,8 @@
       if (!confirm(`Are you sure you want to delete entry ID ${id}?`)) return;
 
       const res = await fetch(`http://localhost:3001/sensors/${id}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: getAuthHeaders()
       });
 
       const result = await res.json();
@@ -168,7 +190,7 @@
       }
     }
 
-    // Chart structures
+    // Chart setup (unchanged)
     const tempData = { labels: [], datasets: [{ label: "Temperature (°C)", data: [], borderColor: "rgba(255,99,132,1)", backgroundColor: "rgba(255,99,132,0.2)", tension: 0.3 }] };
     const humData  = { labels: [], datasets: [{ label: "Humidity (%)", data: [], borderColor: "rgba(54,162,235,1)", backgroundColor: "rgba(54,162,235,0.2)", tension: 0.3 }] };
 
@@ -202,7 +224,10 @@
       }
     };
 
-    window.onload = loadData;
+    window.onload = async () => {
+      await getAccessToken();
+      loadData();
+    };
 
     const mqttClient = mqtt.connect("ws://192.168.1.241:9001");
 
@@ -226,14 +251,12 @@
         tempData.labels.push(time);
         tempData.datasets[0].data.push(value);
         limitData(tempChart); tempChart.update();
-
       } else if (topic === "sensor/humidity") {
         const value = parseFloat(payload);
         statusDiv.innerHTML += `<br>Humidity: ${value} %`;
         humData.labels.push(time);
         humData.datasets[0].data.push(value);
         limitData(humChart); humChart.update();
-
       } else if (topic === "sensor/motion") {
         try {
           const m = JSON.parse(payload);
@@ -245,13 +268,11 @@
           gyroData.datasets[0].data.push(m.GyX);
           gyroData.datasets[1].data.push(m.GyY);
           gyroData.datasets[2].data.push(m.GyZ);
-
           limitData(accelChart); accelChart.update();
           limitData(gyroChart);  gyroChart.update();
         } catch (e) {
           console.error("Invalid motion payload", payload);
         }
-
       } else if (topic === "alert/motion" && payload === "1") {
         showAlert("🚨 Motion detected!", "danger");
       } else if (topic === "alert/climate" && payload === "1") {
@@ -260,7 +281,6 @@
     });
   </script>
 
-  <!-- Bootstrap JS (required for modals) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
