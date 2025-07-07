@@ -991,8 +991,247 @@ After this implementation, the system supports a **fully functional CRUD interfa
 
 ---
 
+## Step: Authentication with OAuth 2.0 and JWT
+
+In this step, the system was secured using authentication based on the **OAuth 2.0 protocol**, specifically the **Client Credentials flow** with **JWT tokens signed using an RSA key pair**.
 
 ---
+
+### Objective
+
+Restrict access to **sensitive REST API routes**, such as actuator control (LED) and data modification (update/delete), requiring a valid **access token** issued by a trusted OAuth server.
+
+---
+
+### Step-by-Step Implementation
+
+#### 1. Generate RSA Key Pair
+
+In the terminal:
+
+```bash
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
+```
+
+These keys are used for:
+
+* `private.pem`: signing JWT tokens (OAuth server)
+* `public.pem`: verifying received tokens (secured API)
+
+---
+
+#### 2. Create the OAuth 2.0 Server (`auth-server.js`)
+
+A Node.js server built with `express` and `jsonwebtoken`:
+
+* The `/token` endpoint issues a signed JWT
+* Uses `private.pem` to sign the token
+* Responds with `access_token`, `expires_in`, etc.
+
+Example token generation:
+
+```js
+jwt.sign(
+  { sub: client_id, scope: "default" },
+  privateKey,
+  { algorithm: "RS256", expiresIn: "1h" }
+);
+```
+
+---
+
+#### 3. Protect the REST API (`api.js`)
+
+* Loads `public.pem` to verify tokens
+* Defines a middleware `verifyJWT` that:
+
+  * Checks for the `Authorization: Bearer ...` header
+  * Validates the token using `jwt.verify(...)`
+  * Rejects unauthorized requests with status `401` or `403`
+
+**Protected routes include:**
+
+* `POST /led`
+* `PUT /sensors/:id`
+* `DELETE /sensors/:id`
+
+---
+
+#### 4. Adapt the Web Interface (`index.html`)
+
+* Automatically obtains the token when the page loads
+* Stores it in a variable `accessToken`
+* Adds `Authorization: Bearer ${accessToken}` to `fetch()` requests for protected routes
+
+Example usage:
+
+```js
+await fetch("http://localhost:3001/led", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${accessToken}`
+  },
+  body: JSON.stringify({ state: true })
+});
+```
+
+---
+
+### Validation and Testing
+
+* Requests **without a token** receive `401 Unauthorized`
+* Requests **with a valid, signed token** are authorized
+* The API terminal logs messages such as:
+
+```bash
+Valid token: { sub: 'my-client', scope: 'default', ... }
+```
+
+---
+
+### Result
+
+The REST API now only accepts sensitive commands from **authorized clients**.
+The web dashboard integrates seamlessly with the OAuth 2.0 `client_credentials` flow, enabling secure and silent authentication for all relevant operations.
+
+---
+
+## Final Execution Sequence for the Complete Web of Things System
+
+This section presents the **full and final sequence** for running the complete Web of Things (WoT) system with:
+
+* Web Interface
+* REST API with SQLite
+* Real-time charts and CRUD support
+* MQTT integration with sensors and actuators
+* OAuth 2.0 + JWT-based authentication
+* Thing Descriptions (TDs) with token protection
+* Optional WoT Client integration
+
+---
+
+## Project Folder Structure (Expected)
+
+```
+/Systems_Integration/
+├── oauth/
+│   ├── auth-server.js        ← OAuth 2.0 Authorization Server
+│   ├── api.js                ← REST API (JWT-protected)
+│   ├── mqtt_logger.js        ← MQTT to SQLite Logger (optional)
+│   ├── public.pem            ← Public RSA Key for JWT validation
+│   ├── private.pem           ← Private RSA Key for JWT signing
+│   └── sensor_data.db        ← SQLite Database
+├── web/
+│   └── index.html            ← Full-featured Web Dashboard
+├── td/
+│   ├── esp32-thing.jsonld
+│   ├── dht11-thing.jsonld
+│   ├── mpu6050-thing.jsonld
+│   └── led-thing.jsonld
+├── consumer/ (optional)
+│   └── consumer.js           ← WoT Client using node-wot
+```
+
+---
+
+## STEP 1 — Start All Servers
+
+### 1. Start the OAuth 2.0 Authorization Server
+
+```bash
+cd Systems_Integration/oauth
+node auth-server.js
+```
+
+> Port: 3000 — Issues JWT access tokens
+
+---
+
+### 2. Start the JWT-Protected REST API
+
+```bash
+cd Systems_Integration/oauth
+node api.js
+```
+
+> Port: 3001 — Serves sensor data with authentication
+
+---
+
+### 3. (Optional) Start the MQTT → SQLite Logger
+
+```bash
+node mqtt_logger.js
+```
+
+> Records MQTT sensor data into the SQLite database
+
+---
+
+### 4. Start the Web Dashboard
+
+```bash
+http-server ./web
+```
+
+> Accessible at:
+> [http://localhost:8080](http://localhost:8080)
+
+---
+
+## STEP 2 — Test in the Browser
+
+Once the panel is opened:
+
+1. It automatically requests a token from the OAuth server
+2. It displays real-time charts (temperature, humidity, motion, gyroscope)
+3. It shows the latest sensor records (`/sensors` route)
+4. It allows the user to:
+
+   * Turn the LED on/off via REST
+   * Edit `payload` fields
+   * Delete sensor log entries
+
+In the terminal running the REST API, you should see logs such as:
+
+```bash
+Valid token: { sub: 'my-client', scope: 'default', ... }
+```
+
+---
+
+## STEP 3 — Optional: Test the WoT Client
+
+### 1. Install Required Dependencies
+
+```bash
+cd Systems_Integration/consumer
+npm install @node-wot/core @node-wot/binding-http @node-wot/binding-mqtt @node-wot/binding-file
+```
+
+### 2. Run the WoT Client
+
+```bash
+node consumer.js
+```
+
+> This client reads the Thing Description and interacts with the system using a valid OAuth 2.0 token automatically.
+
+---
+
+## STEP 4 — Security Validation
+
+* Access the REST API manually **without a token** → returns `401 Unauthorized`
+* Access the API **with a valid token** → authorized
+* Use browser DevTools (F12 → Network) to confirm the use of:
+
+```
+Authorization: Bearer eyJ...
+```
+
+
 
 
 
