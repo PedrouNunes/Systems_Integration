@@ -1360,6 +1360,113 @@ Each consumer is modular and secure, reinforcing key principles of **interoperab
 
 
 
+---
+# Technical Report — Integration of CRUD and Real-Time Charts in the WoT Web Dashboard
+
+---
+
+## Objective
+
+Integrate an interactive web dashboard with the following capabilities:
+
+* Full CRUD support via a REST API protected by OAuth 2.0 (JWT)
+* Real-time charts using MQTT over WebSocket
+* Remote LED control
+* Data filtering by MQTT topic
+* Manual data entry support
+
+---
+
+## Issues Encountered During Implementation
+
+---
+
+### 1. API Could Not Access the Database Properly
+
+* **Cause:** The `api.js` file was moved to the `/oauth` directory but still referenced `sensor_data.db` using a relative path.
+* **Error:** The API returned a 500 status and the message `data.forEach is not a function`.
+* **Solution:** Used `__dirname` to generate an absolute path:
+
+```js
+const dbPath = path.join(__dirname, "..", "sensor_data.db");
+```
+
+---
+
+### 2. Missing `toggleLED()` Function in the Web Panel
+
+* **Cause:** The `toggleLED()` function was not included in the HTML script.
+* **Symptom:** Clicking the "Turn ON" or "Turn OFF" buttons caused the error `toggleLED is not defined`.
+* **Solution:** The function was added to the main `<script>` section of the HTML file.
+
+---
+
+### 3. Real-Time Charts Were Not Working
+
+* **Cause:** The MQTT WebSocket connection on port 9001 was failing.
+* **Error:** Running `mosquitto_sub -p 9001` returned `network protocol error`.
+
+---
+
+## Diagnosing the Mosquitto WebSocket Issue
+
+* Mosquitto was only listening on port 1883 (standard TCP), while browsers require WebSocket.
+* The original `mosquitto.conf` file did **not include `protocol websockets`**.
+
+---
+
+### Solution Applied
+
+#### 1. Updated `mosquitto.conf` File:
+
+```ini
+listener 1883
+protocol mqtt
+
+listener 9001
+protocol websockets
+
+allow_anonymous true
+```
+
+#### 2. Restarted Mosquitto with the Corrected Configuration:
+
+```bash
+mosquitto -v -c C:\mosquitto\conf\mosquitto.conf
+```
+
+#### 3. Result:
+
+* Port 9001 activated: `Opening websockets listen socket on port 9001`
+* Verified using `netstat`: Port 9001 was `LISTENING`
+* Real-time charts became operational immediately after restart
+
+---
+
+## Real-Time Charts and MQTT Events
+
+* `sensor/temperature` and `sensor/humidity`: plotted in real-time
+* `sensor/motion`: plots acceleration (AcX, AcY, AcZ) and gyroscope (GyX, GyY, GyZ)
+* `alert/climate` and `alert/motion`: trigger visual alerts via the `showAlert()` function
+
+---
+
+## Manual Testing Performed
+
+| Component                   | Status                           |
+| --------------------------- | -------------------------------- |
+| LED control via buttons     | ✅ Functional                     |
+| CRUD (POST, PUT, DELETE)    | ✅ Functional                     |
+| Topic filtering             | ✅ Functional                     |
+| Manual entry insertion      | ✅ Functional                     |
+| MQTT WebSocket              | ✅ Functional after Mosquitto fix |
+| Real-time charts (Chart.js) | ✅ Functional                     |
+| MQTT from ESP32             | ✅ Functional                     |
+| OAuth 2.0 protection        | ✅ Functional                     |
+
+---
+
+
 
 
 
