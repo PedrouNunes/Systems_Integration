@@ -1465,6 +1465,65 @@ mosquitto -v -c C:\mosquitto\conf\mosquitto.conf
 | OAuth 2.0 protection        | ✅ Functional                     |
 
 ---
+## Manual LED Control Priority Logic (ESP32)
+
+This section describes the logic implemented in the ESP32 firmware to handle LED control priority between automatic alerts and manual commands issued from the web interface.
+
+---
+
+### Manual Command Priority for LED Control
+
+In the embedded system running on the ESP32, the LED can be triggered automatically by two types of alerts:
+
+* **Motion Alert** (`motionAlert`)
+* **Climate Alert** (`climateAlert`)
+
+However, a temporary **priority mechanism** was added to allow **manual control via the Web Interface** using the MQTT topic `actuator/led`.
+
+---
+
+### How It Works
+
+* When the user sends a `"1"` or `"0"` command through the interface, the LED immediately adopts that manual state.
+* This manual state **takes priority over automatic alerts for a duration of 10 seconds**.
+* After this period, the system reverts to automatic alert-based control.
+
+---
+
+### Rationale
+
+This logic prevents the LED from staying on **indefinitely**, even after the user tries to turn it off, which would otherwise happen if alerts remain active in the background.
+
+---
+
+### Code Implementation
+
+* A variable named `lastManualControl` stores the timestamp of the last manual command.
+* The control condition checks whether the manual override is still in effect:
+
+```cpp
+bool override = (millis() - lastManualControl < overrideDuration);
+if (override) {
+  digitalWrite(LED_PIN, ledState);
+} else {
+  digitalWrite(LED_PIN, (motionAlert || climateAlert));
+}
+```
+
+---
+
+### Override Duration
+
+* The default duration of manual command priority is **10 seconds**.
+* This can be adjusted easily by modifying the constant:
+
+```cpp
+const unsigned long overrideDuration = 10000; // in milliseconds
+```
+
+---
+
+This mechanism ensures responsive control of the actuator and improves user experience by temporarily suppressing automatic behavior when a manual command is issued. 
 
 
 
