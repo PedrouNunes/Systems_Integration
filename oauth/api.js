@@ -21,7 +21,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error("Failed to open database:", err.message);
   } else {
-    console.log("✅ Connected to database at:", dbPath);
+    console.log("Connected to database at:", dbPath);
   }
 });
 
@@ -29,16 +29,31 @@ const db = new sqlite3.Database(dbPath, (err) => {
 const mqttClient = mqtt.connect("mqtt://localhost:1883");
 
 // JWT verification middleware
+// Middleware to verify JWT in incoming requests
 function verifyJWT(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: "Token missing" });
+
+  // Case 1: No token was sent
+  if (!authHeader) {
+    console.warn("[AUTH] Access denied: No token provided.");
+    return res.status(401).json({ error: "Token missing" });
+  }
 
   const token = authHeader.split(" ")[1];
+
   jwt.verify(token, publicKey, { algorithms: ["RS256"] }, (err, decoded) => {
-    if (err) return res.status(403).json({ error: "Invalid token" });
-    next();
+    // Case 2: Token invalid or tampered
+    if (err) {
+      console.warn("[AUTH] Invalid token:", err.message);
+      return res.status(403).json({ error: "Invalid token" });
+    }
+
+    // Case 3: Token is valid
+    console.log(`[AUTH] Token verified successfully. Client: ${decoded.sub || "unknown"}`);
+    next(); // Continue to the protected route
   });
 }
+
 
 // GET /sensors — Retrieve last 50 records
 app.get("/sensors", (req, res) => {

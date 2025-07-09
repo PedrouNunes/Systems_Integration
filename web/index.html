@@ -70,7 +70,7 @@
             </select>
           </div>
           <div class="col-md-4 mb-2">
-            <input type="text" id="insertPayload" class="form-control" placeholder="Payload (e.g. 42.1)">
+            <input type="text" id="insertPayload" class="form-control" placeholder="Value (e.x: 42.1)">
           </div>
           <div class="col-md-4 mb-2">
             <button class="btn btn-success w-100" onclick="insertData()">Insert</button>
@@ -219,7 +219,7 @@
     async function insertData() {
       const topic = document.getElementById("insertTopic").value;
       const payload = document.getElementById("insertPayload").value.trim();
-      if (!topic || !payload) return showAlert("Topic and payload required", "danger");
+      if (!topic || !payload) return showAlert("Topic and value required", "danger");
 
       const res = await fetch("http://localhost:3001/sensors", {
         method: "POST",
@@ -255,7 +255,7 @@
 
       const result = await res.json();
       if (res.ok) {
-        showAlert("✅ Payload updated", "success");
+        showAlert("✅ Value updated", "success");
         loadData();
       } else {
         showAlert(`❌ Update failed: ${result.error}`, "danger");
