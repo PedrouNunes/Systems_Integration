@@ -35,6 +35,9 @@ bool motionAlert = false;
 bool climateAlert = false;
 bool ledState = false;
 
+unsigned long lastManualControl = 0;
+const unsigned long overrideDuration = 10000; // 10 seconds
+
 void setup_wifi() {
   Serial.print("Connecting to Wi-Fi...");
   WiFi.begin(ssid, password);
@@ -60,6 +63,7 @@ void mqttCallback(char* topic, byte* message, unsigned int length) {
     } else if (msg == "0") {
       ledState = false;
     }
+    lastManualControl = millis(); // mark time of manual override
   }
 }
 
@@ -167,7 +171,13 @@ void loop() {
   motionAlert = abs(AcX) > MOTION_THRESHOLD || abs(AcY) > MOTION_THRESHOLD || abs(AcZ) > MOTION_THRESHOLD;
   climateAlert = (temp < TEMP_MIN || temp > TEMP_MAX || hum > HUM_MAX);
 
-  digitalWrite(LED_PIN, (motionAlert || climateAlert || ledState));
+  // override logic
+  bool override = (millis() - lastManualControl < overrideDuration);
+  if (override) {
+    digitalWrite(LED_PIN, ledState);
+  } else {
+    digitalWrite(LED_PIN, (motionAlert || climateAlert));
+  }
 
   Serial.println("===== SENSOR STATUS =====");
   if (isnan(temp) || isnan(hum)) {

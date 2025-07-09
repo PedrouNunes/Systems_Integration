@@ -19,7 +19,7 @@ const dbPath = path.join(__dirname, "..", "sensor_data.db");
 // Connect to SQLite database
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error("❌ Failed to open database:", err.message);
+    console.error("Failed to open database:", err.message);
   } else {
     console.log("✅ Connected to database at:", dbPath);
   }
@@ -120,5 +120,5 @@ app.post("/led", verifyJWT, (req, res) => {
 // Start server
 const PORT = 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 API server running at http://localhost:${PORT}`);
+  console.log(`API server running at http://localhost:${PORT}`);
 });
