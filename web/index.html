@@ -22,7 +22,7 @@
       <div class="alert alert-secondary" id="ledStatus">Status: Waiting...</div>
     </div>
 
-    <!-- Temperature and Humidity Charts -->
+    <!-- Charts -->
     <div class="card p-3 mb-4">
       <h3>Real-time Charts</h3>
       <div class="row">
@@ -30,14 +30,10 @@
         <div class="col-md-6"><canvas id="humChart"></canvas></div>
       </div>
     </div>
-
-    <!-- Acceleration Chart -->
     <div class="card p-3 mb-4">
       <h3>Acceleration (MPU6050)</h3>
       <canvas id="accelChart"></canvas>
     </div>
-
-    <!-- Gyroscope Chart -->
     <div class="card p-3 mb-4">
       <h3>Gyroscope (MPU6050)</h3>
       <canvas id="gyroChart"></canvas>
@@ -46,6 +42,34 @@
     <!-- Sensor Data Table with CRUD -->
     <div class="card p-3 mb-4">
       <h3 class="mb-3">Sensor Data (Last 50 entries)</h3>
+
+      <!-- Filter by Topic -->
+      <div class="input-group mb-3">
+        <select id="topicSelect" class="form-select">
+          <option value="">🔍 Select a topic to search</option>
+        </select>
+        <button class="btn btn-outline-primary" onclick="searchByTopic()">Search</button>
+        <button class="btn btn-outline-secondary" onclick="loadData()">Show All</button>
+      </div>
+
+      <!-- Insert Manual -->
+      <div class="card p-3 mb-3 bg-light">
+        <h4>Insert Manual Sensor Entry</h4>
+        <div class="row">
+          <div class="col-md-4 mb-2">
+            <select id="insertTopic" class="form-select">
+              <option value="">➕ Select a topic to insert</option>
+            </select>
+          </div>
+          <div class="col-md-4 mb-2">
+            <input type="text" id="insertPayload" class="form-control" placeholder="Payload (e.g. 42.1)">
+          </div>
+          <div class="col-md-4 mb-2">
+            <button class="btn btn-success w-100" onclick="insertData()">Insert</button>
+          </div>
+        </div>
+      </div>
+
       <button class="btn btn-primary mb-2" onclick="loadData()">🔄 Refresh</button>
       <div class="table-responsive">
         <table class="table table-striped" id="sensorTable">
@@ -102,6 +126,23 @@
       };
     }
 
+    async function populateTopicDropdown() {
+      const res = await fetch("http://localhost:3001/sensors");
+      const data = await res.json();
+      const topics = [...new Set(data.map(r => r.topic))].sort();
+
+      const select1 = document.getElementById("topicSelect");
+      const select2 = document.getElementById("insertTopic");
+
+      select1.innerHTML = `<option value="">🔍 Select a topic to search</option>`;
+      select2.innerHTML = `<option value="">➕ Select a topic to insert</option>`;
+
+      topics.forEach(topic => {
+        select1.innerHTML += `<option value="${topic}">${topic}</option>`;
+        select2.innerHTML += `<option value="${topic}">${topic}</option>`;
+      });
+    }
+
     function showAlert(message, type = "info", duration = 5000) {
       const alertDiv = document.createElement("div");
       alertDiv.className = `alert alert-${type}`;
@@ -110,24 +151,11 @@
       setTimeout(() => alertDiv.remove(), duration);
     }
 
-    async function toggleLED(state) {
-      const res = await fetch("http://localhost:3001/led", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ state })
-      });
-      const result = await res.json();
-      document.getElementById("ledStatus").textContent = res.ok ?
-        `LED command sent: ${state ? "ON" : "OFF"}` :
-        `Error: ${result.error || "Unknown error"}`;
-    }
-
     async function loadData() {
       const res = await fetch("http://localhost:3001/sensors");
       const data = await res.json();
       const tbody = document.querySelector("#sensorTable tbody");
       tbody.innerHTML = "";
-
       data.forEach(row => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -140,11 +168,57 @@
             <button class="btn btn-sm btn-danger">Delete</button>
           </td>`;
         tbody.appendChild(tr);
-
         const [editBtn, deleteBtn] = tr.querySelectorAll("button");
         editBtn.addEventListener("click", () => openEditModal(row.id, row.payload));
         deleteBtn.addEventListener("click", () => deleteEntry(row.id));
       });
+    }
+
+    async function searchByTopic() {
+      const topic = document.getElementById("topicSelect").value;
+      if (!topic) return showAlert("Please select a topic.", "warning");
+
+      const res = await fetch(`http://localhost:3001/sensors/${encodeURIComponent(topic)}`);
+      const data = await res.json();
+      const tbody = document.querySelector("#sensorTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.id}</td>
+          <td>${row.topic}</td>
+          <td>${row.payload}</td>
+          <td>${row.timestamp}</td>
+          <td>
+            <button class="btn btn-sm btn-warning me-1">Edit</button>
+            <button class="btn btn-sm btn-danger">Delete</button>
+          </td>`;
+        tbody.appendChild(tr);
+        const [editBtn, deleteBtn] = tr.querySelectorAll("button");
+        editBtn.addEventListener("click", () => openEditModal(row.id, row.payload));
+        deleteBtn.addEventListener("click", () => deleteEntry(row.id));
+      });
+    }
+
+    async function insertData() {
+      const topic = document.getElementById("insertTopic").value;
+      const payload = document.getElementById("insertPayload").value.trim();
+      if (!topic || !payload) return showAlert("Topic and payload required", "danger");
+
+      const res = await fetch("http://localhost:3001/sensors", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ topic, payload })
+      });
+      const result = await res.json();
+      if (res.ok) {
+        showAlert("✅ Data inserted", "success");
+        document.getElementById("insertPayload").value = "";
+        loadData();
+        populateTopicDropdown();
+      } else {
+        showAlert(`❌ Insert failed: ${result.error}`, "danger");
+      }
     }
 
     function openEditModal(id, payload) {
@@ -165,7 +239,7 @@
 
       const result = await res.json();
       if (res.ok) {
-        showAlert("✅ Payload updated!", "success");
+        showAlert("✅ Payload updated", "success");
         loadData();
       } else {
         showAlert(`❌ Update failed: ${result.error}`, "danger");
@@ -174,26 +248,23 @@
     }
 
     async function deleteEntry(id) {
-      if (!confirm(`Are you sure you want to delete entry ID ${id}?`)) return;
+      if (!confirm(`Delete entry ID ${id}?`)) return;
 
       const res = await fetch(`http://localhost:3001/sensors/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders()
       });
-
       const result = await res.json();
       if (res.ok) {
-        showAlert("🗑️ Entry deleted.", "warning");
+        showAlert("🗑️ Entry deleted", "warning");
         loadData();
       } else {
         showAlert(`❌ Delete failed: ${result.error}`, "danger");
       }
     }
 
-    // Chart setup (unchanged)
-    const tempData = { labels: [], datasets: [{ label: "Temperature (°C)", data: [], borderColor: "rgba(255,99,132,1)", backgroundColor: "rgba(255,99,132,0.2)", tension: 0.3 }] };
-    const humData  = { labels: [], datasets: [{ label: "Humidity (%)", data: [], borderColor: "rgba(54,162,235,1)", backgroundColor: "rgba(54,162,235,0.2)", tension: 0.3 }] };
-
+    const tempData = { labels: [], datasets: [{ label: "Temperature (°C)", data: [], borderColor: "red", backgroundColor: "rgba(255,0,0,0.2)", tension: 0.3 }] };
+    const humData  = { labels: [], datasets: [{ label: "Humidity (%)", data: [], borderColor: "blue", backgroundColor: "rgba(0,0,255,0.2)", tension: 0.3 }] };
     const accelData = {
       labels: [],
       datasets: [
@@ -202,7 +273,6 @@
         { label: "AcZ", data: [], borderColor: "green", backgroundColor: "green", tension: 0.3 }
       ]
     };
-
     const gyroData = {
       labels: [],
       datasets: [
@@ -224,15 +294,30 @@
       }
     };
 
+    async function toggleLED(state) {
+  const res = await fetch("http://localhost:3001/led", {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ state })
+  });
+
+  const result = await res.json();
+  document.getElementById("ledStatus").textContent = res.ok
+    ? `LED command sent: ${state ? "ON" : "OFF"}`
+    : `Error: ${result.error || "Unknown error"}`;
+}
+
+
     window.onload = async () => {
       await getAccessToken();
-      loadData();
+      await loadData();
+      await populateTopicDropdown();
     };
 
-    const mqttClient = mqtt.connect("ws:192.168.0.5:9001");
+    const mqttClient = mqtt.connect("ws://192.168.0.5:9001");
 
     mqttClient.on("connect", () => {
-      console.log("Connected to MQTT broker (WebSocket)");
+      console.log("Connected to MQTT broker");
       mqttClient.subscribe("sensor/temperature");
       mqttClient.subscribe("sensor/humidity");
       mqttClient.subscribe("sensor/motion");

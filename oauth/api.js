@@ -3,6 +3,7 @@ const sqlite3 = require("sqlite3").verbose();
 const mqtt = require("mqtt");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
+const path = require("path");
 const cors = require("cors");
 
 const app = express();
@@ -12,8 +13,17 @@ app.use(cors());
 // Load RSA public key
 const publicKey = fs.readFileSync("public.pem");
 
+// Resolve correct path to the SQLite database (one folder above)
+const dbPath = path.join(__dirname, "..", "sensor_data.db");
+
 // Connect to SQLite database
-const db = new sqlite3.Database("sensor_data.db");
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error("❌ Failed to open database:", err.message);
+  } else {
+    console.log("✅ Connected to database at:", dbPath);
+  }
+});
 
 // Connect to MQTT broker
 const mqttClient = mqtt.connect("mqtt://localhost:1883");
@@ -110,5 +120,5 @@ app.post("/led", verifyJWT, (req, res) => {
 // Start server
 const PORT = 3001;
 app.listen(PORT, () => {
-  console.log(`API server running at http://localhost:${PORT}`);
+  console.log(`🚀 API server running at http://localhost:${PORT}`);
 });
