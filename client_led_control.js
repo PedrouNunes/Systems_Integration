@@ -19,7 +19,7 @@ const dbPath = path.join(__dirname, "sensor_data.db");
 const db = new sqlite3.Database(dbPath);
 
 // MQTT connection (adjust IP if needed)
-const mqttClient = mqtt.connect("mqtt://192.168.1.241");
+const mqttClient = mqtt.connect("mqtt://192.168.0.5");
 const mqttLedTopic = "actuator/led";
 
 mqttClient.on("connect", () => {

@@ -19,7 +19,7 @@
       "readOnly": false,
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/actuator/led",
+          "href": "mqtt://192.168.0.5/actuator/led",
           "contentType": "application/json",
           "op": ["readproperty", "writeproperty"],
           "subprotocol": "mqtt",

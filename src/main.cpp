@@ -5,11 +5,11 @@
 #include <DHT.h>
 
 // Wi-Fi credentials
-const char* ssid = "MEO-02A070";
-const char* password = "3cdd45d1a1";
+const char* ssid = "NOWO-2018";
+const char* password = "F79C510583554FE7";
 
 // MQTT Broker
-const char* mqtt_server = "192.168.1.241";
+const char* mqtt_server = "192.168.0.5";
 WiFiClient espClient;
 PubSubClient client(espClient);
 

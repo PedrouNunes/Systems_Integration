@@ -2,8 +2,8 @@ const mqtt = require('mqtt');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// MQTT broker URL (adjust if needed)
-const brokerUrl = "mqtt://192.168.1.241";
+// MQTT broker URL (correct format with protocol)
+const brokerUrl = "mqtt://192.168.0.5";
 
 // Topics to subscribe
 const topics = [

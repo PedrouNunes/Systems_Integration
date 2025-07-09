@@ -18,7 +18,7 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/sensor/temperature",
+          "href": "mqtt://192.168.0.5/sensor/temperature",
           "contentType": "application/json",
           "op": "readproperty",
           "security": ["oauth2_auth"]
@@ -31,7 +31,7 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/sensor/humidity",
+          "href": "mqtt://192.168.0.5/sensor/humidity",
           "contentType": "application/json",
           "op": "readproperty",
           "security": ["oauth2_auth"]

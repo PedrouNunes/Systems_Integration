@@ -18,7 +18,7 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/sensor/temperature",
+          "href": "mqtt://192.168.0.5/sensor/temperature",
           "contentType": "application/json",
           "op": "readproperty",
           "security": ["oauth2_auth"]
@@ -31,7 +31,7 @@
       "readOnly": true,
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/sensor/humidity",
+          "href": "mqtt://192.168.0.5/sensor/humidity",
           "contentType": "application/json",
           "op": "readproperty",
           "security": ["oauth2_auth"]
@@ -48,7 +48,7 @@
       },
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/sensor/motion",
+          "href": "mqtt://192.168.0.5/sensor/motion",
           "contentType": "application/json",
           "op": "readproperty",
           "security": ["oauth2_auth"]
@@ -65,7 +65,7 @@
       },
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/sensor/motion",
+          "href": "mqtt://192.168.0.5/sensor/motion",
           "contentType": "application/json",
           "op": "readproperty",
           "security": ["oauth2_auth"]
@@ -77,7 +77,7 @@
       "readOnly": false,
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/actuator/led",
+          "href": "mqtt://192.168.0.5/actuator/led",
           "contentType": "application/json",
           "op": ["readproperty", "writeproperty"],
           "security": ["oauth2_auth"]
@@ -90,7 +90,7 @@
       "data": { "type": "boolean" },
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/alert/climate",
+          "href": "mqtt://192.168.0.5/alert/climate",
           "subprotocol": "mqtt",
           "op": "subscribeevent",
           "security": ["oauth2_auth"]
@@ -101,7 +101,7 @@
       "data": { "type": "boolean" },
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/alert/motion",
+          "href": "mqtt://192.168.0.5/alert/motion",
           "subprotocol": "mqtt",
           "op": "subscribeevent",
           "security": ["oauth2_auth"]

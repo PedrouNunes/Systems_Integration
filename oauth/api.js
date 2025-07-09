@@ -1,60 +1,44 @@
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const mqtt = require("mqtt");
-const bodyParser = require("body-parser");
-const path = require("path");
-const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
+const cors = require("cors");
 
 const app = express();
-const PORT = 3001;
+app.use(express.json());
+app.use(cors());
+
+// Load RSA public key
 const publicKey = fs.readFileSync("public.pem");
 
-app.use(cors());
-app.use(bodyParser.json());
+// Connect to SQLite database
+const db = new sqlite3.Database("sensor_data.db");
 
-// Middleware to verify signed JWT token
+// Connect to MQTT broker
+const mqttClient = mqtt.connect("mqtt://localhost:1883");
+
+// JWT verification middleware
 function verifyJWT(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.log("Access denied: missing token");
-    return res.status(401).json({ error: "Missing Bearer token" });
-  }
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "Token missing" });
 
   const token = authHeader.split(" ")[1];
-  try {
-    const payload = jwt.verify(token, publicKey, { algorithms: ["RS256"] });
-    req.user = payload;
-    console.log("✅ Valid token:", payload);
+  jwt.verify(token, publicKey, { algorithms: ["RS256"] }, (err, decoded) => {
+    if (err) return res.status(403).json({ error: "Invalid token" });
     next();
-  } catch (err) {
-    console.log("Invalid token:", err.message);
-    return res.status(403).json({ error: "Invalid or expired token" });
-  }
+  });
 }
 
-// SQLite configuration
-const dbPath = path.join(__dirname, "../sensor_data.db");
-const db = new sqlite3.Database(dbPath);
-
-// MQTT configuration
-const mqttClient = mqtt.connect("mqtt://192.168.1.241");
-const mqttLedTopic = "actuator/led";
-
-mqttClient.on("connect", () => {
-  console.log("Connected to MQTT broker.");
-});
-
-// Public route: Get latest 50 sensor logs
+// GET /sensors — Retrieve last 50 records
 app.get("/sensors", (req, res) => {
-  db.all("SELECT * FROM sensor_logs ORDER BY timestamp DESC LIMIT 50", (err, rows) => {
+  db.all("SELECT * FROM sensor_logs ORDER BY timestamp DESC LIMIT 50", [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-// Public route: Get latest 50 logs for a specific topic
+// GET /sensors/:topic — Filter by topic
 app.get("/sensors/:topic", (req, res) => {
   const topic = req.params.topic;
   db.all(
@@ -67,48 +51,64 @@ app.get("/sensors/:topic", (req, res) => {
   );
 });
 
-// Protected route: Control LED
-app.post("/led", verifyJWT, (req, res) => {
-  const { state } = req.body;
-  if (typeof state !== "boolean") {
-    return res.status(400).json({ error: "Missing or invalid 'state' (boolean)" });
+// POST /sensors — Insert new sensor data (manual)
+app.post("/sensors", verifyJWT, (req, res) => {
+  const { topic, payload } = req.body;
+
+  if (!topic || !payload) {
+    return res.status(400).json({ error: "Missing 'topic' or 'payload'" });
   }
 
-  const payload = state ? "1" : "0";
-  mqttClient.publish(mqttLedTopic, payload, {}, (err) => {
-    if (err) return res.status(500).json({ error: "Failed to publish to MQTT" });
-    res.json({ status: "LED command sent", value: state });
+  const sql = "INSERT INTO sensor_logs (topic, payload, timestamp) VALUES (?, ?, datetime('now'))";
+  db.run(sql, [topic, payload], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json({
+      message: "Record inserted successfully",
+      id: this.lastID,
+      topic,
+      payload,
+    });
   });
 });
 
-// Protected route: Update sensor record
+// PUT /sensors/:id — Update a sensor record
 app.put("/sensors/:id", verifyJWT, (req, res) => {
-  const { id } = req.params;
+  const id = req.params.id;
   const { payload } = req.body;
 
-  if (typeof payload !== "string") {
-    return res.status(400).json({ error: "Invalid 'payload'" });
-  }
+  if (!payload) return res.status(400).json({ error: "Missing payload" });
 
-  const sql = "UPDATE sensor_logs SET payload = ? WHERE id = ?";
-  db.run(sql, [payload, id], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: "Record not found" });
-    res.json({ message: "Record updated successfully" });
-  });
+  db.run(
+    "UPDATE sensor_logs SET payload = ? WHERE id = ?",
+    [payload, id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: "Record not found" });
+      res.json({ message: "Record updated", id });
+    }
+  );
 });
 
-// Protected route: Delete sensor record
+// DELETE /sensors/:id — Delete a sensor record
 app.delete("/sensors/:id", verifyJWT, (req, res) => {
-  const { id } = req.params;
-  const sql = "DELETE FROM sensor_logs WHERE id = ?";
-  db.run(sql, [id], function (err) {
+  const id = req.params.id;
+
+  db.run("DELETE FROM sensor_logs WHERE id = ?", [id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     if (this.changes === 0) return res.status(404).json({ error: "Record not found" });
-    res.json({ message: "Record deleted successfully" });
+    res.json({ message: "Record deleted", id });
   });
 });
 
+// POST /led — Send MQTT command to control LED
+app.post("/led", verifyJWT, (req, res) => {
+  const message = req.body.state === true || req.body.state === "1" ? "1" : "0";
+  mqttClient.publish("actuator/led", message);
+  res.json({ message: "LED command sent", state: message });
+});
+
+// Start server
+const PORT = 3001;
 app.listen(PORT, () => {
-  console.log(`REST API with JWT validation running at http://localhost:${PORT}`);
+  console.log(`API server running at http://localhost:${PORT}`);
 });

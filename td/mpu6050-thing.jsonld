@@ -22,7 +22,7 @@
       },
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/sensor/motion",
+          "href": "mqtt://192.168.0.5/sensor/motion",
           "contentType": "application/json",
           "op": "readproperty",
           "security": ["oauth2_auth"]
@@ -35,7 +35,7 @@
       "data": { "type": "boolean" },
       "forms": [
         {
-          "href": "mqtt://192.168.1.241/alert/motion",
+          "href": "mqtt://192.168.0.5/alert/motion",
           "subprotocol": "mqtt",
           "contentType": "application/json",
           "op": "subscribeevent",

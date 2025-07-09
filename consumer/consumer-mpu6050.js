@@ -24,17 +24,17 @@ servient.start().then(async (WoT) => {
 
     const accel = await thing.readProperty("acceleration");
     const a = await accel.value?.();
-    console.log("📈 Acceleration:", a || "No data");
+    console.log("Acceleration:", a || "No data");
 
     const gyroEvent = thing.subscribeEvent("motionAlert", (data) => {
-      console.log("🌀 Motion Alert:", data);
+      console.log("Motion Alert:", data);
     });
 
     setTimeout(() => {
       gyroEvent.unsubscribe();
-      console.log("🛑 Unsubscribed from motionAlert");
+      console.log("Unsubscribed from motionAlert");
     }, 10000);
   } catch (err) {
-    console.error("❌ MPU6050 Error:", err.message || err);
+    console.error("MPU6050 Error:", err.message || err);
   }
 });
