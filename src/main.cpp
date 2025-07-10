@@ -31,19 +31,21 @@ const float TEMP_MAX = 25.0;
 const float HUM_MAX = 80.0;
 const int MOTION_THRESHOLD = 18000;
 
+// State variables
 bool motionAlert = false;
 bool climateAlert = false;
 bool ledState = false;
+bool sleepMode = false;
+bool lastButtonState = HIGH;
 
 unsigned long lastManualControl = 0;
 const unsigned long overrideDuration = 10000; // 10 seconds
-unsigned long lastSensorRead = 0;
-const unsigned long sensorInterval = 5000;
 
-bool lastButtonState = HIGH;
-bool sleepMode = false;
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 50;
+
+unsigned long lastSensorRead = 0;
+const unsigned long sensorInterval = 5000; // 5 seconds
 
 void setup_wifi()
 {
@@ -129,7 +131,7 @@ void read_mpu()
     AcY = Wire.read() << 8 | Wire.read();
     AcZ = Wire.read() << 8 | Wire.read();
     Wire.read();
-    Wire.read(); // skip temp
+    Wire.read(); // skip temperature
     GyX = Wire.read() << 8 | Wire.read();
     GyY = Wire.read() << 8 | Wire.read();
     GyZ = Wire.read() << 8 | Wire.read();
@@ -141,20 +143,24 @@ void read_mpu()
   }
 }
 
-void checkButton() {
+void checkButton()
+{
   bool currentState = digitalRead(BUTTON_PIN);
   unsigned long now = millis();
 
-  if (currentState != lastButtonState && currentState == LOW && (now - lastDebounceTime > debounceDelay)) {
-    // Toggle sleep mode
+  if (currentState != lastButtonState && currentState == LOW && (now - lastDebounceTime > debounceDelay))
+  {
     sleepMode = !sleepMode;
 
-    if (sleepMode) {
+    if (sleepMode)
+    {
       Serial.println("[BUTTON] Sleep Mode activated");
       digitalWrite(LED_PIN, LOW);
       ledState = false;
       client.publish("alert/button", "Sleep Mode activated");
-    } else {
+    }
+    else
+    {
       Serial.println("[BUTTON] Sleep Mode deactivated");
       client.publish("alert/button", "Sleep Mode deactivated");
     }
@@ -203,16 +209,24 @@ void setup()
   client.setCallback(mqttCallback);
 }
 
-void loop() {
-  if (!client.connected()) {
+void loop()
+{
+  if (!client.connected())
     reconnect();
-  }
   client.loop();
 
-  checkButton(); // read button continuously
+  checkButton(); // Check button every cycle
+
+  if (sleepMode)
+  {
+    Serial.println("[SLEEP MODE] System is paused.");
+    digitalWrite(LED_PIN, LOW);
+    return; // Skip everything else
+  }
 
   unsigned long now = millis();
-  if (now - lastSensorRead >= sensorInterval) {
+  if (now - lastSensorRead >= sensorInterval)
+  {
     lastSensorRead = now;
 
     float temp = dht.readTemperature();
@@ -222,19 +236,18 @@ void loop() {
     motionAlert = abs(AcX) > MOTION_THRESHOLD || abs(AcY) > MOTION_THRESHOLD || abs(AcZ) > MOTION_THRESHOLD;
     climateAlert = (temp < TEMP_MIN || temp > TEMP_MAX || hum > HUM_MAX);
 
-    if (sleepMode) {
-      digitalWrite(LED_PIN, LOW);
-    } else {
-      bool override = (millis() - lastManualControl < overrideDuration);
-      digitalWrite(LED_PIN, override ? ledState : (motionAlert || climateAlert));
-    }
+    bool override = (millis() - lastManualControl < overrideDuration);
+    digitalWrite(LED_PIN, override ? ledState : (motionAlert || climateAlert));
 
     Serial.println("===== SENSOR STATUS =====");
-    if (!isnan(temp) && !isnan(hum)) {
+    if (!isnan(temp) && !isnan(hum))
+    {
       Serial.printf("Temperature: %.2f °C\n", temp);
       Serial.printf("Humidity: %.2f %%\n", hum);
       publishSensorData(temp, hum);
-    } else {
+    }
+    else
+    {
       Serial.println("DHT sensor read failed!");
     }
 
