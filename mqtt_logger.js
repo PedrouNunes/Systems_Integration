@@ -11,7 +11,8 @@ const topics = [
   "sensor/humidity",
   "sensor/motion",
   "alert/climate",
-  "alert/motion"
+  "alert/motion",
+  "alert/button"
 ];
 
 // Connect to MQTT broker

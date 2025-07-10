@@ -339,52 +339,56 @@
       mqttClient.subscribe("sensor/motion");
       mqttClient.subscribe("alert/motion");
       mqttClient.subscribe("alert/climate");
+      mqttClient.subscribe("alert/button");
     });
 
     mqttClient.on("message", (topic, message) => {
-  const payload = message.toString();
-  const time = new Date().toLocaleTimeString();
+      const payload = message.toString();
+      const time = new Date().toLocaleTimeString();
 
-  const sensorStatus = document.getElementById("sensorStatus");
+      const sensorStatus = document.getElementById("sensorStatus");
 
-  if (topic === "sensor/temperature") {
-    const value = parseFloat(payload);
-    sensorStatus.innerHTML = `Temperature: ${value} °C`;
-    tempData.labels.push(time);
-    tempData.datasets[0].data.push(value);
-    limitData(tempChart); tempChart.update();
+      if (topic === "sensor/temperature") {
+        const value = parseFloat(payload);
+        sensorStatus.innerHTML = `Temperature: ${value} °C`;
+        tempData.labels.push(time);
+        tempData.datasets[0].data.push(value);
+        limitData(tempChart); tempChart.update();
 
-  } else if (topic === "sensor/humidity") {
-    const value = parseFloat(payload);
-    sensorStatus.innerHTML += `<br>Humidity: ${value} %`;
-    humData.labels.push(time);
-    humData.datasets[0].data.push(value);
-    limitData(humChart); humChart.update();
+      } else if (topic === "sensor/humidity") {
+        const value = parseFloat(payload);
+        sensorStatus.innerHTML += `<br>Humidity: ${value} %`;
+        humData.labels.push(time);
+        humData.datasets[0].data.push(value);
+        limitData(humChart); humChart.update();
 
-  } else if (topic === "sensor/motion") {
-    try {
-      const m = JSON.parse(payload);
-      accelData.labels.push(time);
-      accelData.datasets[0].data.push(m.AcX);
-      accelData.datasets[1].data.push(m.AcY);
-      accelData.datasets[2].data.push(m.AcZ);
-      gyroData.labels.push(time);
-      gyroData.datasets[0].data.push(m.GyX);
-      gyroData.datasets[1].data.push(m.GyY);
-      gyroData.datasets[2].data.push(m.GyZ);
-      limitData(accelChart); accelChart.update();
-      limitData(gyroChart);  gyroChart.update();
-    } catch (e) {
-      console.error("Invalid motion payload", payload);
-    }
+      } else if (topic === "sensor/motion") {
+        try {
+          const m = JSON.parse(payload);
+          accelData.labels.push(time);
+          accelData.datasets[0].data.push(m.AcX);
+          accelData.datasets[1].data.push(m.AcY);
+          accelData.datasets[2].data.push(m.AcZ);
+          gyroData.labels.push(time);
+          gyroData.datasets[0].data.push(m.GyX);
+          gyroData.datasets[1].data.push(m.GyY);
+          gyroData.datasets[2].data.push(m.GyZ);
+          limitData(accelChart); accelChart.update();
+          limitData(gyroChart); gyroChart.update();
+        } catch (e) {
+          console.error("Invalid motion payload", payload);
+        }
 
-  } else if (topic === "alert/motion" && payload === "1") {
-    showAlert("🚨 Motion detected!", "danger");
+      } else if (topic === "alert/motion" && payload === "1") {
+        showAlert("🚨 Motion detected!", "danger");
 
-  } else if (topic === "alert/climate" && payload === "1") {
-    showAlert("⚠️ Climate alert triggered!", "warning");
-  }
-});
+      } else if (topic === "alert/climate" && payload === "1") {
+        showAlert("⚠️ Climate alert triggered!", "warning");
+
+      } else if (topic === "alert/button") {
+        showAlert("🔕 " + payload, "info");
+      }
+    });
 
   </script>
 
