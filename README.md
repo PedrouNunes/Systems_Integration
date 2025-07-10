@@ -1525,6 +1525,166 @@ const unsigned long overrideDuration = 10000; // in milliseconds
 
 This mechanism ensures responsive control of the actuator and improves user experience by temporarily suppressing automatic behavior when a manual command is issued. 
 
+---
+
+# Technical Manual – Implementation of Button Logic for Sleep Mode
+
+## Objective
+
+Implement logic so that the **physical button connected to the ESP32** works as a **Sleep Mode switch**, allowing the system to be **completely paused** (sensors, alerts, LED, MQTT publications) and **resumed** by pressing the button again.
+
+---
+
+## Implemented Logic
+
+### Desired behavior:
+
+* **Press the button once** → Sleep Mode is activated:
+
+  * LED is turned off.
+  * The system stops sending sensor data and alerts.
+  * A `"Sleep Mode activated"` message is sent via MQTT.
+
+* **Press again** → Sleep Mode is deactivated:
+
+  * The system resumes normal operation.
+  * LED returns to automatic control.
+  * A `"Sleep Mode deactivated"` message is sent via MQTT.
+
+---
+
+## Involved Components
+
+| Component                    | Function                                  |
+| ---------------------------- | ----------------------------------------- |
+| **ESP32**                    | Controls sensors, LED, and button logic   |
+| **Physical Button** (GPIO 4) | Digital input using `INPUT_PULLUP`        |
+| **Mosquitto**                | MQTT broker                               |
+| **mqtt\_logger.js**          | Logs messages into the SQLite database    |
+| **index.html**               | Web interface using MQTT.js and Bootstrap |
+| **api.js**                   | (No changes needed)                       |
+
+---
+
+## Code on ESP32 (`main.cpp`)
+
+### 1. Definitions:
+
+```cpp
+#define BUTTON_PIN 4
+bool sleepMode = false;
+bool lastButtonState = HIGH;
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 50;
+```
+
+### 2. `checkButton()` function with debounce:
+
+```cpp
+void checkButton() {
+  bool currentState = digitalRead(BUTTON_PIN);
+  unsigned long now = millis();
+
+  if (currentState != lastButtonState && currentState == LOW && (now - lastDebounceTime > debounceDelay)) {
+    sleepMode = !sleepMode;
+
+    if (sleepMode) {
+      Serial.println("[BUTTON] Sleep Mode activated");
+      digitalWrite(LED_PIN, LOW);
+      ledState = false;
+      client.publish("alert/button", "Sleep Mode activated");
+    } else {
+      Serial.println("[BUTTON] Sleep Mode deactivated");
+      client.publish("alert/button", "Sleep Mode deactivated");
+    }
+
+    lastDebounceTime = now;
+  }
+
+  lastButtonState = currentState;
+}
+```
+
+### 3. Full system pause in `loop()`:
+
+```cpp
+checkButton(); // Always check first
+
+if (sleepMode) {
+  Serial.println("[SLEEP MODE] System is paused.");
+  digitalWrite(LED_PIN, LOW);
+  return; // Exit loop early
+}
+```
+
+---
+
+## MQTT Publication
+
+### Topic used:
+
+* `alert/button`
+
+### Payloads:
+
+* `"Sleep Mode activated"`
+* `"Sleep Mode deactivated"`
+
+These messages are:
+
+* Captured by the web interface (via MQTT.js)
+* Automatically stored by `mqtt_logger.js` in the SQLite database (`sensor_logs`)
+
+---
+
+## Web Interface (`index.html`)
+
+### 1. MQTT subscription:
+
+```js
+mqttClient.subscribe("alert/button");
+```
+
+### 2. Message handler:
+
+```js
+else if (topic === "alert/button") {
+  showAlert("Sleep Mode: " + payload, "info");
+}
+```
+
+### 3. Displayed alert:
+
+```html
+<div class="alert alert-info">Sleep Mode: Sleep Mode activated</div>
+```
+
+---
+
+## Database Storage
+
+The script `mqtt_logger.js` is already configured to store the topic `alert/button`. Each activation or deactivation of sleep mode is recorded as a new entry in the SQLite database.
+
+---
+
+## Validation
+
+| Action               | Expected Result                               |
+| -------------------- | --------------------------------------------- |
+| Button pressed       | LED turns off, sensors pause, MQTT alert sent |
+| Button pressed again | LED turns on, sensors resume, MQTT alert sent |
+| Web Interface        | Displays a visual alert using Bootstrap       |
+| MQTT Logger          | Saves the event in `sensor_data.db`           |
+
+---
+
+## Final Considerations
+
+* The button acts as a **simple toggle** with debounce and MQTT publishing.
+* The logic is **safe, stable, and scalable** for use with other devices.
+* No changes were needed in `api.js` since control logic is internal to the ESP32.
+* Integration with the web dashboard follows the existing alert standard.
+
 
 
 
